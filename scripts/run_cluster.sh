@@ -1,0 +1,62 @@
+#!/bin/bash
+
+#PROJECT_HOME="/Users/joefresna/DecisionOnNetworks"
+PROJECT_HOME="/home/ac1ar/DecisionsOnNetworks"
+CONF_DIR="${PROJECT_HOME}/conf_cluster"
+mkdir -p ${CONF_DIR}
+TEMPLATE_SETTINGS="${PROJECT_HOME}/conf/DDMNet.template.config"
+PYPATH="${PROJECT_HOME}/src/"
+EXEC_FILE="${PROJECT_HOME}/src/DriftDiffMod/DDMNet.py"
+OUTPUT_DATA_DIR="${PROJECT_HOME}/data13/"
+
+SEED=2211
+NUM_EXP=10
+NUM_RUN=100
+
+DDM_DRIFT_METHOD='normal'
+BASE_DRIFT=0.1
+DDM_DRIFT_RANGE_MIN=-1
+DDM_DRIFT_RANGE_MAX=1
+DDM_STD_DEV_DRIFT=0.3
+DDM_STD_DEV_NOISE=0.5
+THRESHOLD=1
+
+#NUM_NODES=20
+#NUM_NODES_LIST=(100 500 1000)
+NUM_NODES_LIST=(10 20 30)
+LINK_PROBABILITY=0
+NUM_EDGES_LIST=$(seq 2 3 9)
+
+for NUM_NODES in ${NUM_NODES_LIST[*]}
+do
+	for NUM_EDGES in ${NUM_EDGES_LIST[*]}
+	do
+		JOB_PARAM="nodes-${NUM_NODES}_link-${NUM_EDGES}_drift-${BASE_DRIFT}"
+		OUT_TXT="${OUTPUT_DATA_DIR}out_${JOB_PARAM}.txt"
+		#OUT_PDF="${OUTPUT_DATA_DIR}pdf/out_${JOB_PARAM}"
+			
+		CONF_FILE="${CONF_DIR}/ddmnet_${JOB_PARAM}.config"
+			
+		sed -e "s|SEED|${SEED}|" \
+			-e "s|NUM_EXP|${NUM_EXP}|" \
+			-e "s|NUM_RUN|${NUM_RUN}|" \
+			-e "s|DDM_DRIFT_METHOD|${DDM_DRIFT_METHOD}|" \
+			-e "s|BASE_DRIFT|${BASE_DRIFT}|" \
+			-e "s|DDM_DRIFT_RANGE_MIN|${DDM_DRIFT_RANGE_MIN}|" \
+			-e "s|DDM_DRIFT_RANGE_MAX|${DDM_DRIFT_RANGE_MAX}|" \
+			-e "s|DDM_STD_DEV_DRIFT|${DDM_STD_DEV_DRIFT}|" \
+			-e "s|DDM_STD_DEV_NOISE|${DDM_STD_DEV_NOISE}|" \
+			-e "s|THRESHOLD|${THRESHOLD}|" \
+			-e "s|NUM_NODES|${NUM_NODES}|" \
+			-e "s|NUM_EDGES|${NUM_EDGES}|" \
+			-e "s|LINK_PROBABILITY|${LINK_PROBABILITY}|" \
+			-e "s|OUT_TXT|${OUT_TXT}|" \
+				${TEMPLATE_SETTINGS} > ${CONF_FILE}
+					
+		export PYTHONPATH=${PYPATH}
+		#COMMAND="python3 ${EXEC_FILE} ${CONF_FILE}"
+		#COMMAND="./run_job.sh ${EXEC_FILE} ${CONF_FILE}"
+		COMMAND="qsub run_job.sh ${EXEC_FILE} ${CONF_FILE}"
+		${COMMAND}		
+	done
+done
