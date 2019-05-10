@@ -10,17 +10,19 @@ require(grid)
 simpleVsDDMtoPdf <- function(prefix){
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-simple-vs-ddm.pdf")
 	plotSuccessOnNodes(prefix, nodes_list=seq(11, 31, 4), numRuns=100,
-			netType="full", accuracy=0.6, acstdv=0.3, agentTypes=c('simple', 'DDM'),
-			methods=c("conf-perfect"), colours=rainbow(10), yrange=c(0.8,1))
+			netType="full", accuracy=0.6, acstdv=0.12, agentTypes=c('simple', 'DDM'),
+			methods=c("conf-perfect"), colours=rainbow(10), yrange=c(0.5,1) )
 	dev.off()
 }
 
-allDecModelsToPdf <- function(prefix){
+allDecModelsToPdf <- function(prefix, acc=0.6, stdev=0.12){
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-dec-models.pdf")
 	plotSuccessOnNodes(prefix, nodes_list=seq(11, 31, 4), numRuns=100,
-			netType="full", accuracy=0.6, acstdv=0.3, agentTypes=c('DDM'),
-			methods=c("best-acc", "majority-rand", "conf-perfect", "log-odds"),
-			colours=rainbow(10), yrange=c(0,1))
+			netType="full", accuracy=acc, acstdv=stdev, agentTypes=c('DDM'),
+			#methods=c("best-acc", "majority-rand", "conf-perfect", "log-odds"),
+			methods=c("best-acc", "majority-rand", "conf-perfect", "log-odds-perfect", 
+					"log-odds-combo", "log-odds-distr", "log-odds-approx"),
+			colours=rainbow(10), yrange=c(0.5,1))
 	dev.off()
 }
 
@@ -68,7 +70,7 @@ allTimePlots <- function(prefix){
 
 plotSuccessOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), numRuns=100,
 		netType="full", accuracy=0.6, acstdv=0.3, agentTypes=c('simple', 'DDM'),
-		methods=c("best-acc", "majority-rand", "conf-perfect"), colours=rainbow(10), yrange=c(0,1)){
+		methods=c("best-acc", "majority-rand", "conf-perfect"), colours=rainbow(10), yrange=c(0,1), ttest=F){
 	combolength <- length(methods) + (length(agentTypes) > 1)
 	offset <- 0.02*combolength
 	xmin <- min(nodes_list)
@@ -95,19 +97,29 @@ plotSuccessOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), numRuns=100,
 				data <- read.table(filename, header=T)
 				dt <- data.table(data)
 				tmp <- dt[, list(pos=sum(pos[pos == nodes])/nodes, neg=sum(neg[neg == nodes])/nodes, nRuns=length(exp[pos == nodes | neg == nodes])), by=exp]
-				tmp$metric <- tmp$pos / tmp$nRuns
+				#tmp$metric <- tmp$pos / tmp$nRuns
+				tmp$metric <- tmp$pos / numRuns
 				dataFilt <- c(dataFilt, tmp[,'metric'])
 				if (nodes == nodes_list[1]) {
 					ltxt <- paste(agentType,method,sep=" ")
+					ltxt <- gsub("conf-perfect", "opt-conf", ltxt)
+					ltxt <- gsub("log-odds-perfect", "log-odds-opt", ltxt)
 					legTxt <- c(legTxt, ltxt)
 				}
 			}
 		}
-		size <- xrange/40
+#		return(dataFilt)
+#		if (ttest){
+#			t.test(x=dataFilt[1], y = NULL,
+#					alternative = c("two.sided", "less", "greater"),
+#					mu = 0, paired = FALSE, var.equal = FALSE,
+#					conf.level = 0.95, ...)
+#		}
+		size <- xrange/60
 		positions = nodes + (seq(0,combolength-1) - floor((combolength-1)/2))*size*1.5
 		print(length(dataFilt))
 		print(positions)
-		boxplot( dataFilt, at=positions, boxwex=size, add=T, col=colours[1:combolength], axes=F)
+		boxplot( dataFilt, at=positions, boxwex=size, add=T, col=colours[1:combolength], axes=F, outcex=0.5)
 		
 	}
 	legend('bottomright', legTxt, fill=colours[1:combolength], cex=1.5, bg='white')

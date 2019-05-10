@@ -9,6 +9,17 @@ import collections
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx #@UnresolvedImport
+import operator as op
+from functools import reduce
+
+## function for combination (n r)
+def ncr(n, r):
+    r = min(r, n-r)
+    if r == 0: return 1
+    numer = reduce(op.mul, range(n, n-r, -1))
+    denom = reduce(op.mul, range(1, r+1))
+    return numer//denom
+
 
 # wrap a few graph generation functions so they have the same signature
 # n : int  -- The number of nodes.
@@ -87,10 +98,40 @@ def testNet(numOfNodes, numEdges, randomSeed):
     plt.bar( connCount.keys(), connCount.values())
     plt.show()
     #plotDensityHistogram(graph)
+    
+def testConnectivity(numOfNodes, probLink, randomSeed):
+    graph=nx.erdos_renyi_graph(numOfNodes, probLink, randomSeed)
+    print( "number of edges: " + str(graph.number_of_edges())  + " avg on " + str(graph.number_of_nodes()) + ": " + str(graph.number_of_edges()/(numOfNodes-2) ))
+    print( "density: " + str(nx.density(graph)))
+    
+    conn = list()
+    for node in nx.nodes(graph):
+        e = len(list( nx.all_neighbors(graph,node) ))
+        conn.append( e )
+    
+    print(conn)
+    connCount = collections.Counter(conn)
+    print("connCount:",connCount)
+    #connCount.update( (x, y/numOfNodes) for x, y in connCount.items() )
+    for key in connCount:    
+        connCount[key] /=  numOfNodes
+    print( np.arange( len(connCount) ) )
+    #plt.bar( np.arange( len(connCount) ), connCount.values())
+    connProb = lambda n, p, k: ncr( n-1, k) * pow(p,k) * pow( (1 - p), (n - 1 - k) )
+    plt.bar( connCount.keys(), connCount.values())
+    
+    xlist = list(np.arange(0, numOfNodes))
+    ylist = list(map(lambda x: connProb(numOfNodes, probLink, x), xlist))
+#     print(xlist)
+#     print(ylist)
+    plt.plot( xlist, ylist) 
+    plt.show()
+    #plotDensityHistogram(graph)
 
 if __name__ == '__main__':
-    numOfNodes = 30
+    numOfNodes = 128
     numEdges = 4
-    randomSeed = 333
-    testNet(numOfNodes, numEdges, randomSeed)
+    probLink = 0.3
+    randomSeed = 999
+    testConnectivity(numOfNodes, probLink, randomSeed)
     

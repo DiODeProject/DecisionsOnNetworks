@@ -1,10 +1,7 @@
 #!/bin/bash
 #Request 12 gigabytes of virtual (mem) and real (rmem) memory
-#$ -l mem=12G -l rmem=4G
-#$ -l h_rt=168:00:00
+#$ -l mem=64G -l rmem=32G
 #$ -N decnet
-#$ -e clust_logs/
-#$ -o clust_logs/
 
 if [ $# -le 2 ]; then
 	#Load the Anaconda Python 3 Environment module for ICEBERG

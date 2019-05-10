@@ -7,15 +7,18 @@ mkdir -p ${CONF_DIR}
 TEMPLATE_SETTINGS="${PROJECT_HOME}/conf/DecNet.template.config"
 PYPATH="${PROJECT_HOME}/src/"
 EXEC_FILE="${PROJECT_HOME}/src/DecNet/DecisionProcess.py"
-OUTPUT_DATA_DIR="${PROJECT_HOME}/conf2/"
+OUTPUT_DATA_DIR="${PROJECT_HOME}/conf12/"
 
 SEED=2289
-NUM_EXP=10
+NUM_EXP=1000
 NUM_RUN=100
+MAX_TIME=200
 
 AGENT_TYPE='DDM'
 #DEC_MODEL_LIST=('conf-perfect' 'majority-rand' 'best-acc')
-DEC_MODEL_LIST=('log-odds')
+#DEC_MODEL_LIST=('best-acc' 'conf-perfect' 'log-odds-perfect' 'log-odds-combo' 'log-odds-distr' 'log-odds-approx')
+DEC_MODEL_LIST=('majority-rand')
+UPDATE_CONF='no-up'
 
 ### Unnecessary for this analysis 
 DDM_DRIFT_DIST='from_accuracy'
@@ -34,7 +37,8 @@ LINK_PROBABILITY=1
 NUM_EDGES=1
 
 ACC_MEAN_LIST=( 0.6 )
-ACC_STD_DEV_LIST=( 0.3 )
+ACC_STD_DEV_LIST=( 0.12 )
+ACC_TRUNCATED='true'
 
 COUNT=0
 
@@ -56,10 +60,13 @@ do
 				sed -e "s|SEED|${SEED}|" \
 					-e "s|NUM_EXP|${NUM_EXP}|" \
 					-e "s|NUM_RUN|${NUM_RUN}|" \
+					-e "s|MAX_TIME|${NUM_RUN}|" \
 					-e "s|AGENT_TYPE|${AGENT_TYPE}|" \
 					-e "s|ACC_MEAN|${ACC_MEAN}|" \
 					-e "s|ACC_STD_DEV|${ACC_STD_DEV}|" \
+					-e "s|ACC_TRUNCATED|${ACC_TRUNCATED}|" \
 					-e "s|DEC_MODEL|${DEC_MODEL}|" \
+					-e "s|UPDATE_CONF|${UPDATE_CONF}|" \
 					-e "s|DDM_DRIFT_DIST|${DDM_DRIFT_DIST}|" \
 					-e "s|DDM_BASE_DRIFT|${DDM_BASE_DRIFT}|" \
 					-e "s|DDM_DRIFT_RANGE_MIN|${DDM_DRIFT_RANGE_MIN}|" \
@@ -74,12 +81,16 @@ do
 					-e "s|LINK_PROBABILITY|${LINK_PROBABILITY}|" \
 					-e "s|OUT_TXT|${OUT_TXT}|" \
 						${TEMPLATE_SETTINGS} > ${CONF_FILE}
-							
+						
 				export PYTHONPATH=${PYPATH}
 				#COMMAND="python3 ${EXEC_FILE} ${CONF_FILE}"
 				#COMMAND="./run_job.sh ${EXEC_FILE} ${CONF_FILE}"
 				COMMAND="qsub run_job.sh ${EXEC_FILE} ${CONF_FILE}"
-				${COMMAND}
+				#${COMMAND}
+				while ! ${COMMAND}
+				do
+					sleep 2
+				done
 				COUNT=$((COUNT + 1))
 			done
 		done

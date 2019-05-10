@@ -2,23 +2,12 @@ library(data.table)
 #library(MASS)
 library(lattice)
 require(grid)
-library(RColorBrewer)
 
 #############################################################################
 ################################ AGGREGATES #################################
 #############################################################################
 
-plotAllOfAllCompareNets <- function(prefix){
-	T_MAX <- 200
-	allEffectivityPlots(prefix=prefix, T_MAX=T_MAX)
-	allSuccessPlots(prefix=prefix, T_MAX=T_MAX)
-	fullNetSuccRate(prefix=prefix, T_MAX=T_MAX)
-	allTimePlots(prefix=prefix, T_MAX=T_MAX)
-	allSuccessPlotsMtxVsFull(prefix=prefix, T_MAX=T_MAX)
-	allSuccessMethodPlots(prefix=prefix, T_MAX=T_MAX)
-}
-
-plotAllOfAll_old <- function(prefix, nodes=c(100, 500, 1000), links=seq(0.2,0.8,0.2), drift=0.1, methods=c("conf","M-rand","M-bias","M-inhib","CDCI"), const_methods=c("bestDDM", "confDDM", "FNconf", "FNmaj")){
+plotAllOfAll <- function(prefix, nodes=c(100, 500, 1000), links=seq(0.2,0.8,0.2), drift=0.1, methods=c("conf","M-rand","M-bias","M-inhib","CDCI"), const_methods=c("bestDDM", "confDDM", "FNconf", "FNmaj")){
 	colours=rainbow(length(c(methods, const_methods)))
 	plotAllEffectivity(prefix=prefix, nodes=nodes, links=links, drift=drift, pdfout=paste(prefix,"im-effectivity.pdf",sep=""), methods=methods, colours=colours)
 	plotAllSuccess(prefix=prefix, nodes=nodes, links=links, drift=drift, pdfout=paste(prefix,"im-success.pdf",sep=""), methods=methods, const_methods=const_methods, colours=colours)
@@ -85,171 +74,130 @@ allEffectivityPlots_explore <- function(prefix, nodes=c(11, 23, 31), acc=0.6){
 	}
 }
 
-allEffectivityPlots <- function(prefix, nodes=seq(11,47,12), acc=0.6, T_MAX=30){
-#	colours <- rainbow(6)
-	colours <- brewer.pal(6, "Dark2")
+allEffectivityPlots <- function(prefix, nodes=c(11, 23, 31), acc=0.6){
+	colours <- rainbow(6)
 	for (n in nodes){
 		pdf(paste("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/eff-upds-erdos-n",n,".pdf",sep=""))
-		plotEffectivityOnNetParam(prefix, nodes_list=c(n), param=seq(0.2, 0.8, 0.1), xlabel="Parameter p_e (linking probability)", numRuns=1,
-				netType="erdos-renyi", accuracy=acc, acstdv=0.12, T_MAX=T_MAX,
+		plotEffectivityOnNetParam(prefix, nodes_list=c(n), param=seq(0.3, 0.8, 0.1), xlabel="Parameter p_e (linking probability)", numRuns=1,
+				netType="erdos-renyi", accuracy=acc, acstdv=0.12, 
 				#				methods=c("majority-rand", "conf-perfect"), updates=c("no-up", "optim-up", "belief-up"), combineMethods=TRUE,
-				methods=c("majority-rand", "majority-rand", "conf-perfect", "conf-perfect", "conf-perfect"), 
-				updates=c("no-up", "optim-up", "no-up", "optim-up", "belief-up"), combineMethods=FALSE,
-				edge=3, link=0.2, colours=colours, bxplt=F, truncated='true' )
+				methods=c("majority-rand", "majority-rand", "conf-perfect", "conf-perfect", "conf-perfect", "conf-perfect"), updates=c("no-up", "optim-up", "no-up", "optim-up", "belief-up", "theta-up"), combineMethods=FALSE,
+				edge=2, link=0.3, colours=colours, bxplt=F, truncated='true' )
 		title(paste("Effectivity for ", n, " nodes on Erdos-Renyi network", sep=""))
 		dev.off()
 		
 		pdf(paste("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/eff-upds-barabasi-n",n,".pdf",sep=""))
-		plotEffectivityOnNetParam(prefix, nodes_list=c(n), param=seq(3, 15, 2), xlabel="Parameter m (number of edges)", numRuns=1,
-				netType="barabasi-albert", accuracy=acc, acstdv=0.12, T_MAX=T_MAX,
+		plotEffectivityOnNetParam(prefix, nodes_list=c(n), param=seq(2, 10, 2), xlabel="Parameter m (number of edges)", numRuns=1,
+				netType="barabasi-albert", accuracy=acc, acstdv=0.12,
 				#				methods=c("majority-rand", "conf-perfect"), updates=c("no-up", "optim-up", "belief-up"), combineMethods=TRUE,
-				methods=c("majority-rand", "majority-rand", "conf-perfect", "conf-perfect", "conf-perfect"), 
-				updates=c("no-up", "optim-up", "no-up", "optim-up", "belief-up"), combineMethods=FALSE,
-				edge=3, link=0.2, colours=colours, bxplt=F, truncated='true' )
+				methods=c("majority-rand", "majority-rand", "conf-perfect", "conf-perfect", "conf-perfect", "conf-perfect"), updates=c("no-up", "optim-up", "no-up", "optim-up", "belief-up", "theta-up"), combineMethods=FALSE,
+				edge=2, link=0.3, colours=colours, bxplt=F, truncated='true' )
 		title(paste("Effectivity for ", n, " nodes on Barabasi-Albert network", sep=""))
 		dev.off()
 	}
 }
 
-allSuccessPlots <- function(prefix, nodes=seq(11,47,12), acc=0.6, acstdv=0.12, T_MAX=30){
-	colours <- brewer.pal(6, "Dark2")
+allSuccessPlots <- function(prefix, nodes=c(11, 23, 31), acc=0.6, acstdv=0.12){
+	colours <- rainbow(6)
 	for (n in nodes){
 		pdf(paste("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-methods-ER-n",n,".pdf",sep=""))
-		plotSuccessOnNetParam(prefix, nodes_list=c(n), param=seq(0.2, 0.8, 0.1), xlabel="Parameter p_e (linking probability)",
-				netType="erdos-renyi", accuracy=acc, acstdv=acstdv, T_MAX=T_MAX,
+		plotSuccessOnNetParam(prefix, nodes_list=c(n), param=seq(0.3, 0.8, 0.1), xlabel="Parameter p_e (linking probability)",
+				netType="erdos-renyi", accuracy=acc, acstdv=acstdv, 
 #				methods=c("majority-rand", "conf-perfect"), updates=c("no-up", "optim-up", "belief-up"), combineMethods=TRUE,
-				methods=c("majority-rand", "majority-rand", "conf-perfect", "conf-perfect", "conf-perfect"), 
-				updates=c("no-up", "optim-up", "no-up", "optim-up", "belief-up"), combineMethods=FALSE,
-				edge=3, link=0.2, colours=colours, yrange=c(0.5,1), truncated="true", bxplt=FALSE )
+				methods=c("majority-rand", "majority-rand", "conf-perfect", "conf-perfect", "conf-perfect", "conf-perfect"), updates=c("no-up", "optim-up", "no-up", "optim-up", "belief-up", "theta-up"), combineMethods=FALSE,
+				edge=2, link=0.3, colours=colours, yrange=c(0.5,1), truncated="true", bxplt=FALSE )
 		title(paste("Success rate for ", n, " nodes on Erdos-Renyi network", sep=""))
 		dev.off()
 		
 		pdf(paste("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-methods-BA-n",n,".pdf",sep=""))
-		plotSuccessOnNetParam(prefix, nodes_list=c(n), param=seq(3, 15, 2), xlabel="Parameter m (number of edges)",
-				netType="barabasi-albert", accuracy=acc, acstdv=acstdv, T_MAX=T_MAX,
+		plotSuccessOnNetParam(prefix, nodes_list=c(n), param=seq(2, 10, 2), xlabel="Parameter m (number of edges)",
+				netType="barabasi-albert", accuracy=acc, acstdv=acstdv, 
 #				methods=c("majority-rand", "conf-perfect"), updates=c("no-up", "optim-up", "belief-up"), combineMethods=TRUE,
-				methods=c("majority-rand", "majority-rand", "conf-perfect", "conf-perfect", "conf-perfect"),
-				updates=c("no-up", "optim-up", "no-up", "optim-up", "belief-up"), combineMethods=FALSE,
-				edge=3, link=0.2, colours=colours, yrange=c(0.5,1), truncated="true", bxplt=FALSE )
+				methods=c("majority-rand", "majority-rand", "conf-perfect", "conf-perfect", "conf-perfect", "conf-perfect"), updates=c("no-up", "optim-up", "no-up", "optim-up", "belief-up", "theta-up"), combineMethods=FALSE,
+				edge=2, link=0.3, colours=colours, yrange=c(0.5,1), truncated="true", bxplt=FALSE )
 		title(paste("Success rate for ", n, " nodes on Barabasi-Albert network", sep=""))
 		dev.off()
 	}
 }
 
-fullNetSuccRate <- function(prefix,T_MAX=30){
-	colours <- brewer.pal(6, "Dark2")
+fullNetSuccRate <- function(prefix){
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-full.pdf")
-	plotSuccessOnNodes(prefix, nodes_list=seq(11,47,6), edges=c(3), links=c(0.2), T_MAX=T_MAX,
+	plotSuccessOnNodes(prefix, nodes_list=seq(11, 31, 4), edges=c(2, 6, 8), links=c(0.1, 0.3, 0.5), 
 			netTypes=c("full"),accuracy=0.6, acstdv=0.12, updates=c("no-up"), truncated="true", bxplt = FALSE,
-			methods=c("best-acc", "majority-rand", "conf-perfect", "belief-alg"), colours=colours, yrange=c(0.7, 1))
+			methods=c("best-acc", "majority-rand", "conf-perfect"), colours=rainbow(3), yrange=c(0.7, 1))
 	dev.off()
 }
 
-allSuccessPlotsMtxVsFull <- function(prefix, acc=0.6, stdev=0.12, T_MAX=30){
+allSuccessPlotsMtxVsFull <- function(prefix, acc=0.6, stdev=0.12){
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onfull-ER-maj-rand.pdf")
-	diffMatrixSuccessFullnet(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-			netType="erdos-renyi", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.0025), T_MAX=T_MAX,
+	diffMatrixSuccessFullnet(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
+			netType="erdos-renyi", accuracy=acc, acstdv=stdev, brks=seq(-0.06,0.06,0.0025), 
 			update="optim-up", method="majority-rand", truncated='true', singleRun=TRUE )
 	dev.off()
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onfull-BA-maj-rand.pdf")
-	diffMatrixSuccessFullnet(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-			netType="barabasi-albert", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.0025), T_MAX=T_MAX,
+	diffMatrixSuccessFullnet(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
+			netType="barabasi-albert", accuracy=acc, acstdv=stdev, brks=seq(-0.06,0.06,0.0025),
 			update="optim-up", method="majority-rand", truncated='true', singleRun=TRUE )
 	dev.off()
 	
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onfull-ER-conf.pdf")
-	diffMatrixSuccessFullnet(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-			netType="erdos-renyi", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.0025), T_MAX=T_MAX,
+	diffMatrixSuccessFullnet(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
+			netType="erdos-renyi", accuracy=acc, acstdv=stdev, brks=seq(-0.06,0.06,0.0025),
 			update="optim-up", method="conf-perfect", truncated='true', singleRun=TRUE )
 	dev.off()
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onfull-BA-conf.pdf")
-	diffMatrixSuccessFullnet(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-			netType="barabasi-albert", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.0025), T_MAX=T_MAX,
+	diffMatrixSuccessFullnet(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
+			netType="barabasi-albert", accuracy=acc, acstdv=stdev, brks=seq(-0.06,0.06,0.0025),
 			update="optim-up", method="conf-perfect", truncated='true', singleRun=TRUE )
-	dev.off()
-	
-	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onfull-ER-belief.pdf")
-	diffMatrixSuccessFullnet(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-			netType="erdos-renyi", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.0025), T_MAX=T_MAX,
-			update="belief-up", method="conf-perfect", truncated='true', singleRun=TRUE )
-	dev.off()
-	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onfull-BA-belief.pdf")
-	diffMatrixSuccessFullnet(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-			netType="barabasi-albert", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.0025), T_MAX=T_MAX,
-			update="belief-up", method="conf-perfect", truncated='true', singleRun=TRUE )
 	dev.off()
 }
 
-allSuccessMethodPlots <- function(prefix, acc=0.6, stdev=0.12, T_MAX=30){
+allSuccessMethodPlots <- function(prefix, acc=0.6, stdev=0.12){
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onbest-ER-maj-rand.pdf")
-	diffMatrixSuccessMethod(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-		netType="erdos-renyi", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.005), T_MAX=T_MAX,
+	diffMatrixSuccessMethod(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
+		netType="erdos-renyi", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.005),
 		update="optim-up", methods=c("majority-rand", "best-acc"), truncated='true', singleRun=TRUE)
 	dev.off()
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onbest-ER-conf.pdf")
-	diffMatrixSuccessMethod(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-		netType="erdos-renyi", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.005), T_MAX=T_MAX,
+	diffMatrixSuccessMethod(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
+		netType="erdos-renyi", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.005),
 		update="optim-up", methods=c("conf-perfect", "best-acc"), truncated='true', singleRun=TRUE)
-	dev.off()
-	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onbest-ER-belief.pdf")
-	diffMatrixSuccessMethod(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-		netType="erdos-renyi", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.005), T_MAX=T_MAX,
-		update="belief-up", methods=c("conf-perfect", "best-acc"), truncated='true', singleRun=TRUE)
 	dev.off()
 
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onbest-BA-maj-rand.pdf")
-	diffMatrixSuccessMethod(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-		netType="barabasi-albert", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.005), T_MAX=T_MAX,
+	diffMatrixSuccessMethod(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
+		netType="barabasi-albert", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.005),
 		update="optim-up", methods=c("majority-rand", "best-acc"), truncated='true', singleRun=TRUE)
 	dev.off()
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onbest-BA-conf.pdf")
-	diffMatrixSuccessMethod(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-		netType="barabasi-albert", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.005), T_MAX=T_MAX,
+	diffMatrixSuccessMethod(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
+		netType="barabasi-albert", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.005),
 		update="optim-up", methods=c("conf-perfect", "best-acc"), truncated='true', singleRun=TRUE)
 	dev.off()
-	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/succ-onbest-BA-belief.pdf")
-	diffMatrixSuccessMethod(prefix, nodes_list=seq(11,47,6), edges=seq(3, 15, 2), links=seq(0.2, 0.8, 0.1), 
-		netType="barabasi-albert", accuracy=acc, acstdv=stdev, brks=seq(-0.15,0.15,0.005), T_MAX=T_MAX,
-		update="belief-up", methods=c("conf-perfect", "best-acc"), truncated='true', singleRun=TRUE)
-	dev.off()
-	
-	
 }
 
-allTimePlots <- function(prefix, acc=0.6, stdev=0.12, T_MAX=30){
+allTimePlots <- function(prefix, acc=0.6, stdev=0.12){
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/time-nets-erdos.pdf", width=17, height=7)
 #	plotTimeOnNodes(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
 #			netTypes=c("erdos-renyi", "barabasi-albert"), accuracy=acc, acstdv=stdev, truncated='true',
 #			updates=c("optim-up"), methods=c("majority-rand"), colours=rainbow(12), yrange=c(1,20), singleRun=TRUE)
-	plotTimeTwoMethodsOnNodes(prefix=prefix, nodes_list=seq(11,47,12), edges=seq(3, 15, 2), T_MAX=T_MAX,
-			links=seq(0.2, 0.8, 0.1), netTypes=c("erdos-renyi"), accuracy=acc, acstdv=stdev, truncated='true', 
-			updates=c("optim-up", "optim-up"), methods=c("conf-perfect","majority-rand"), colours=rainbow(7), 
+	plotTimeTwoMethodsOnNodes(prefix=prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), 
+			links=seq(0.3, 0.8, 0.1), netTypes=c("erdos-renyi"), accuracy=acc, acstdv=stdev, truncated='true', 
+			updates=c("theta-up", "optim-up"), methods=c("majority-rand","conf-perfect"), colours=rainbow(6), 
 			yrange=c(0,8), singleRun=TRUE)
-	dev.off()
-	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/time-nets-erdos-belief.pdf", width=17, height=7)
-	plotTimeTwoMethodsOnNodes(prefix=prefix, nodes_list=seq(11,47,12), edges=seq(3, 15, 2), T_MAX=T_MAX,
-			links=seq(0.2, 0.8, 0.1), netTypes=c("erdos-renyi"), accuracy=acc, acstdv=stdev, truncated='true', 
-			updates=c("optim-up", "belief-up"), methods=c("conf-perfect","conf-perfect"), colours=rainbow(7), 
-			yrange=c(0,50), singleRun=TRUE)
 	dev.off()
 	
 #	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/time-nets-conf-theta.pdf", width=17, height=7)
-#	plotTimeOnNodes(prefix, nodes_list=seq(11,47,12), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
+#	plotTimeOnNodes(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
 #			netTypes=c("erdos-renyi", "barabasi-albert"), accuracy=acc, acstdv=stdev, truncated='true',
 #			updates=c("theta-up"), methods=c("conf-perfect"), colours=rainbow(12), yrange=c(1,20), singleRun=TRUE)
 #	dev.off()
 	
 	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/time-nets-barabasi.pdf", width=17, height=7)
-	plotTimeTwoMethodsOnNodes(prefix=prefix, nodes_list=seq(11,47,12), edges=seq(3, 15, 2), T_MAX=T_MAX,
-			links=seq(0.2, 0.8, 0.1), netTypes=c("barabasi-albert"), accuracy=acc, acstdv=stdev, truncated='true', 
-			updates=c("optim-up", "optim-up"), methods=c("conf-perfect","majority-rand"), colours=rainbow(7), 
+	plotTimeTwoMethodsOnNodes(prefix=prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), 
+			links=seq(0.3, 0.8, 0.1), netTypes=c("barabasi-albert"), accuracy=acc, acstdv=stdev, truncated='true', 
+			updates=c("theta-up", "optim-up"), methods=c("majority-rand","conf-perfect"), colours=rainbow(6), 
 			yrange=c(0,8), singleRun=TRUE)
-	dev.off()
-	pdf("/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/time-nets-barabasi-belief.pdf", width=17, height=7)
-	plotTimeTwoMethodsOnNodes(prefix=prefix, nodes_list=seq(11,47,12), edges=seq(3, 15, 2), T_MAX=T_MAX,
-			links=seq(0.2, 0.8, 0.1), netTypes=c("barabasi-albert"), accuracy=acc, acstdv=stdev, truncated='true', 
-			updates=c("optim-up", "belief-up"), methods=c("conf-perfect","conf-perfect"), colours=rainbow(7), 
-			yrange=c(0,50), singleRun=TRUE)
 	dev.off()
 }
 
@@ -293,8 +241,8 @@ plotAllTime <- function(prefix, nodes=c(100, 500, 1000), links=seq(0.2,0.8,0.2),
 #############################################################################
 
 plotEffectivityOnNetParam <- function(prefix, nodes_list=c(23), param=seq(2, 10, 4), xlabel="Parameter m (number of edges)",numRuns=100,
-		netType="barabasi-albert", accuracy=0.6, acstdv=0.12, methods=c("majority-rand", "conf-perfect"), edge=2, link=0.3, T_MAX=50,
-		updates=c("no-up", "theta-up", "theta-norm"), colours=rainbow(10), yrange=c(0,1), bxplt=TRUE, truncated='true', combineMethods=FALSE, legNodes=FALSE, pltCol=3) {
+		netType="barabasi-albert", accuracy=0.6, acstdv=0.12, methods=c("majority-rand", "conf-perfect"), edge=2, link=0.3,
+		updates=c("no-up", "theta-up", "theta-norm"), colours=rainbow(10), yrange=c(0,1), bxplt=TRUE, truncated='true', combineMethods=FALSE ) {
 	
 	pntTypes = c(1,4,5,3,8,7,0,2,6,9,10,11,12,13)
 	
@@ -325,38 +273,27 @@ plotEffectivityOnNetParam <- function(prefix, nodes_list=c(23), param=seq(2, 10,
 	}
 	
 	legTxt <- c()
-	dataPlot <- data.frame()
 	for (netPar in param){
 		dataFilt <- c()
-		m <- 0
 		for (nodes in nodes_list){
-			if (netPar >= nodes) {next}
+			m <- 0
 			for (method in methods){
+				m <- m+1
 				for (update in updates_loop){
-					m <- m+1
 					if (method == "best-acc" && (netType != netTypes[1] || link != links[1] || edge != edges[1]) ) { ## getting only best-acc for the first net-type (because it's the same for others)
 						next
 					}
-					if (netType == "space") {
-						filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_range-",format(netPar, nsmall=2),
-								"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_eps-0.1.txt",sep="")
-					} else {
-						if (netType == "erdos-renyi") {link <- netPar}
-						if (netType == "barabasi-albert") {edge <- netPar}
-						if (!combineMethods) {
-							update <- updates[m]
-						}
-						filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_range-",edge,
-								"0_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_eps-0.1.txt",sep="")
-#								print(filename)
+					if (netType == "erdos-renyi") {link <- netPar}
+					if (netType == "barabasi-albert") {edge <- netPar}
+					if (!combineMethods) {
+						update <- updates[m]
 					}
+					filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_edges-",edge,
+							"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_trunc-",truncated,".txt",sep="")
+#							print(filename)
 					data <- read.table(filename, header=T)
-					if (bxplt){
-						dt <- data.table(data)
-						dataFilt <- c(dataFilt, dt[, list(eff=length(exp[ iter <= T_MAX & (pos == nodes | neg == nodes) ])/numRuns ), by=exp][,'eff'])
-					} else {
-						dataPlot <- rbind(dataPlot, c(netPar, m, nrow(data[ data$iter <= T_MAX & (data$pos == nodes | data$neg == nodes) , ]) / nrow(data), data$deg, data$clust ))
-					}
+					dt <- data.table(data)
+					dataFilt <- c(dataFilt, dt[, list(eff=length(exp[pos == nodes | neg == nodes])/numRuns ), by=exp][,'eff'])
 					if (netPar == param[1]) {
 						ltxt <- paste(method,update,sep=" ")
 						ltxt <- gsub("perfect", "weigh", ltxt)
@@ -373,34 +310,22 @@ plotEffectivityOnNetParam <- function(prefix, nodes_list=c(23), param=seq(2, 10,
 		#print(positions)
 		if (bxplt){
 			boxplot( dataFilt, at=positions, boxwex=size, add=T, col=colours[1:combolength], axes=F, outcex=0.5)
+		} else {
+			print( paste(netType, netPar) )
+			print( data.frame(lapply(dataFilt, mean, na.rm=TRUE)) )
+			points( positions, lapply(dataFilt, mean, na.rm=TRUE), pch=pntTypes[1:combolength], col=colours[1:combolength], cex=1, lwd=2 )
 		}
-#		else {
-#			print( paste(netType, netPar) )
-#			print( data.frame(lapply(dataFilt, mean, na.rm=TRUE)) )
-#			points( positions, lapply(dataFilt, mean, na.rm=TRUE), pch=pntTypes[1:combolength], col=colours[1:combolength], cex=1, lwd=2 )
-#		}
 	}
-	
 	if (bxplt){
 		legend('bottomright', legTxt, fill=colours[1:combolength], cex=1.5, bg='white')
 	} else {
-		
-		for (m in seq(1,length(legTxt))){
-			points( dataPlot[dataPlot[,2]==m,1], dataPlot[dataPlot[,2]==m,pltCol], pch=pntTypes[m], col=colours[m], cex=1, lwd=2, type='b' )
-		}
-		
-		if (legNodes){
-			legend('bottomright', paste("Nodes",nodes_list), pch=pntTypes[1:length(nodes_list)], col=colours[1:length(nodes_list)], lty=0, cex=1, lwd=2, bg='white' )
-		} else {
-			legend('bottomright', legTxt, pch=pntTypes[1:combolength], col=colours[1:combolength], lty=0, cex=1, lwd=2, bg='white' )
-		}
+		legend('bottomright', legTxt, pch=pntTypes[1:combolength], col=colours[1:combolength], lty=0, cex=1, lwd=2, bg='white' )
 	}
 }
 
 plotEffectivityOnNodes <- function(prefix, nodes_list=c(11, 19, 31), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), numRuns=100,
-		netTypes=c("full", "erdos-renyi", "barabasi-albert"),accuracy=0.6, acstdv=0.12, methods=c("best-acc", "conf-perfect"), 
-		updates=c("no-up","theta-up","theta-norm"), colours=rainbow(12), bxplt=FALSE){
-	pntTypes = c(1,4,5,3,8,7,0,2,6,9,10,11,12,13)
+		netTypes=c("full", "erdos-renyi", "barabasi-albert"),accuracy=0.7, acstdv=0.3, methods=c("best-acc", "conf-perfect"), 
+		updates=c("no-up","theta-up","theta-norm"), colours=rainbow(12)){
 	combolength <- length(methods)*length(netTypes)*length(updates)
 	methodscount <- length(methods)*length(updates)
 	if ('best-acc' %in% methods){
@@ -409,7 +334,6 @@ plotEffectivityOnNodes <- function(prefix, nodes_list=c(11, 19, 31), edges=seq(2
 	}
 	if ('erdos-renyi' %in% netTypes){ combolength <- combolength + (length(links)-1)*methodscount }
 	if ('barabasi-albert' %in% netTypes){ combolength <- combolength + (length(edges)-1)*methodscount }
-	if ('space' %in% netTypes){ combolength <- combolength + (length(edges)-1)*methodscount }
 	offset <- 0.01*combolength
 	xmin <- min(nodes_list)
 	xmax <- max(nodes_list)
@@ -431,19 +355,14 @@ plotEffectivityOnNodes <- function(prefix, nodes_list=c(11, 19, 31), edges=seq(2
 							if (method == "best-acc" && (net != netTypes[1] || link != links[1] || edge != edges[1]) ) { ## getting only best-acc for the first net-type (because it's the same for others)
 								next
 							}
-							if (net == "space") {
-								filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_range-",format(edge, nsmall=2),
-										"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_eps-0.1.txt",sep="")
-							} else {
-								if (net != "erdos-renyi" && link != links[1]) { ## looping on linking-probablity on if net is erdos-renyi
-									next
-								}
-								if (net != "barabasi-albert" && edge != edges[1]) { ## looping on edges on if net is barabasi-albert
-									next
-								}
-								filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_edges-",edge,
-										"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,".txt",sep="")
+							if (net != "erdos-renyi" && link != links[1]) { ## looping on linking-probablity on if net is erdos-renyi
+								next
 							}
+							if (net != "barabasi-albert" && edge != edges[1]) { ## looping on edges on if net is barabasi-albert
+								next
+							}
+							filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_edges-",edge,
+									"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,".txt",sep="")
 							#print(filename)
 							data <- read.table(filename, header=T)
 							dt <- data.table(data)
@@ -511,7 +430,7 @@ plotEffectivityOnNodes <- function(prefix, nodes_list=c(11, 19, 31), edges=seq(2
 plotSuccessOnNetParam <- function(prefix, nodes_list=c(23), param=seq(2, 10, 4), xlabel="Parameter m (number of edges)",
 		netType="barabasi-albert", accuracy=0.7, acstdv=0.3, methods=c("majority-rand", "conf-perfect"), edge=2, link=0.3,
 		updates=c("no-up", "theta-up", "theta-norm"), colours=rainbow(10), yrange=c(0,1), truncated="true", bxplt=TRUE,
-		combineMethods=FALSE, T_MAX=30) {
+		combineMethods=FALSE) {
 	pntTypes = c(1,4,5,3,8,7,0,2,6,9,10,11,12,13)
 	
 	if (combineMethods){
@@ -544,11 +463,9 @@ plotSuccessOnNetParam <- function(prefix, nodes_list=c(23), param=seq(2, 10, 4),
 	}
 	
 	legTxt <- c()
-	dataPlot <- data.frame()
 	for (netPar in param){
 		dataFilt <- c()
 		for (nodes in nodes_list){
-			if (netPar >= nodes) {next}
 			m <- 0
 			for (method in methods){
 				m <- m+1
@@ -565,18 +482,17 @@ plotSuccessOnNetParam <- function(prefix, nodes_list=c(23), param=seq(2, 10, 4),
 					if (netType == "erdos-renyi") {link <- netPar}
 					if (netType == "barabasi-albert") {edge <- netPar}
 					filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_edges-",edge,
-							"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,".txt",sep="")
+							"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_trunc-",truncated,".txt",sep="")
 #							print(filename)
 					data <- read.table(filename, header=T)
 					if (bxplt){
 						dt <- data.table(data)
-						tmp <- dt[, list(pos=sum(pos[iter <= T_MAX & pos == nodes])/nodes, neg=sum(neg[iter <= T_MAX & neg == nodes])/nodes, nRuns=length(exp[iter <= T_MAX & (pos == nodes | neg == nodes)])), by=exp]
+						tmp <- dt[, list(pos=sum(pos[pos == nodes])/nodes, neg=sum(neg[neg == nodes])/nodes, nRuns=length(exp[pos == nodes | neg == nodes])), by=exp]
 						tmp$metric <- tmp$pos / tmp$nRuns
 						dataFilt <- c(dataFilt, tmp[,'metric'])
 					} else {
 						#dataFilt <- c(dataFilt, nrow(data[ data$pos == nodes, ]) / nrow( data[ data$pos == nodes | data$neg == nodes, ] ) )
-						#dataFilt <- c(dataFilt, nrow(data[ data$pos == nodes, ]) / nrow(data) )
-						dataPlot <- rbind(dataPlot, c(netPar, m, nrow(data[ data$iter <= T_MAX & data$pos == nodes, ]) / nrow(data) ))
+						dataFilt <- c(dataFilt, nrow(data[ data$pos == nodes, ]) / nrow(data) )
 					}
 					if (netPar == param[1]) {
 						ltxt <- paste(method,update,sep=" ")
@@ -594,15 +510,12 @@ plotSuccessOnNetParam <- function(prefix, nodes_list=c(23), param=seq(2, 10, 4),
 			#print(length(dataFilt))
 			#print(positions)
 			boxplot( dataFilt, at=positions, boxwex=size, add=T, col=colours[1:combolength], axes=F, outcex=0.5)
+		} else {
+			points( positions, dataFilt, pch=pntTypes[1:combolength], col=colours[1:combolength], cex=1, lwd=2 )
+			print(dataFilt)
 		}
 		
 	}
-	if (!bxplt){
-		for (m in seq(1,length(methods))){
-			points( dataPlot[dataPlot[,2]==m,1], dataPlot[dataPlot[,2]==m,3], pch=pntTypes[m], col=colours[m], cex=1, lwd=2, type='b' )
-		}
-	}
-	
 	if (bxplt){
 		legend('bottomright', legTxt, fill=colours[1:combolength], cex=1, bg='white')
 	} else {
@@ -612,7 +525,7 @@ plotSuccessOnNetParam <- function(prefix, nodes_list=c(23), param=seq(2, 10, 4),
 
 plotSuccessOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 4), links=seq(0.3, 0.8, 0.1), 
 		netTypes=c("full", "erdos-renyi", "barabasi-albert"),accuracy=0.7, acstdv=0.3, methods=c("best-acc", "conf-perfect"),
-		updates=c("no-up","theta-up","theta-norm"), colours=rainbow(10), yrange=c(0,1), truncated="true", bxplt=TRUE, T_MAX=30 ){
+		updates=c("no-up","theta-up","theta-norm"), colours=rainbow(10), yrange=c(0,1), truncated="true", bxplt=TRUE ){
 	
 	pntTypes = c(1,4,5,3,8,7,0,2,6,9,10,11,12,13)
 	combolength <- length(methods)*length(netTypes)
@@ -636,16 +549,13 @@ plotSuccessOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 1
 	}
 	
 	legTxt <- c()
-	dataPlot <- data.frame()
 	for (nodes in nodes_list){
 		dataFilt <- c()
-		m <- 0
 		for (method in methods){
 			for (net in netTypes){
 				for (edge in edges){
 					for (link in links){
 						for (update in updates){
-							m <- m+1
 							if (method == "best-acc" && (net != netTypes[1] || link != links[1] || edge != edges[1]) ) { ## getting only best-acc for the first net-type (because it's the same for others)
 								next
 							}
@@ -655,8 +565,19 @@ plotSuccessOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 1
 							if (net != "barabasi-albert" && edge != edges[1]) { ## looping on edges on if net is barabasi-albert
 								next
 							}
-							if (net != "erdos-renyi") {link <- links[1]}
-							
+							if (net != "erdos-renyi") {link <- 0.3}
+							filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_edges-",edge,
+									"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_trunc-",truncated,".txt",sep="")
+#							print(filename)
+							data <- read.table(filename, header=T)
+							if (bxplt){
+								dt <- data.table(data)
+								tmp <- dt[, list(pos=sum(pos[pos == nodes])/nodes, neg=sum(neg[neg == nodes])/nodes, nRuns=length(exp[pos == nodes | neg == nodes])), by=exp]
+								tmp$metric <- tmp$pos / tmp$nRuns
+								dataFilt <- c(dataFilt, tmp[,'metric'])
+							} else {
+								dataFilt <- c(dataFilt, nrow(data[ data$pos == nodes, ]) / nrow( data[ data$pos == nodes | data$neg == nodes, ] ) )
+							}
 							if (nodes == nodes_list[1]) {
 								if (length(methods)>1 && length(netTypes)>1) {
 									ltxt <- paste(net,method,sep=" ")
@@ -680,23 +601,6 @@ plotSuccessOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 1
 								ltxt <- gsub("rand", "rule", ltxt)
 								legTxt <- c(legTxt, ltxt)
 							}
-							
-							if (method == "belief-alg") {method <- "conf-perfect"; update <- "belief-up"; }
-							filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_edges-",edge,
-									"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,".txt",sep="")
-#							print(filename)
-							data <- read.table(filename, header=T)
-							if (bxplt){
-								dt <- data.table(data)
-								tmp <- dt[, list(pos=sum(pos[pos == nodes])/nodes, neg=sum(neg[neg == nodes])/nodes, nRuns=length(exp[pos == nodes | neg == nodes])), by=exp]
-								tmp$metric <- tmp$pos / tmp$nRuns
-								dataFilt <- c(dataFilt, tmp[,'metric'])
-							} else {
-								#dataFilt <- c(dataFilt, nrow(data[ data$pos == nodes, ]) / nrow( data[ data$pos == nodes | data$neg == nodes, ] ) )
-								#dataPlot <- rbind(dataPlot, c(nodes, m, nrow(data[ data$iter <= T_MAX & data$pos == nodes, ]) / nrow( data[ data$iter <= T_MAX & (data$pos == nodes | data$neg == nodes), ] )) )
-								dataPlot <- rbind(dataPlot, c(nodes, m, nrow(data[ data$iter <= T_MAX & data$pos == nodes, ]) / nrow( data)) )
-							}
-							
 						}
 					}
 				}
@@ -708,21 +612,12 @@ plotSuccessOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 1
 			#print(length(dataFilt))
 			#print(positions)
 			boxplot( dataFilt, at=positions, boxwex=size, add=T, col=colours[1:combolength], axes=F, outcex=0.5)
-		} 
-#		else {
-#			points( positions, dataFilt, pch=pntTypes[1:combolength], col=colours[1:combolength], cex=1, lwd=2 )
-#			print(dataFilt)
-#		}
+		} else {
+			points( positions, dataFilt, pch=pntTypes[1:combolength], col=colours[1:combolength], cex=1, lwd=2 )
+			print(dataFilt)
+		}
 		
 	}
-	
-	if (!bxplt){
-		for (m in seq(1,length(legTxt))){
-			points( dataPlot[dataPlot[,2]==m,1], dataPlot[dataPlot[,2]==m,3], pch=pntTypes[m], col=colours[m], cex=1, lwd=2, lty=2, type='b' )
-		}
-	}
-	print(dataPlot)
-	
 	if (bxplt){
 		legend('bottomright', legTxt, fill=colours[1:combolength], cex=1.5, bg='white')
 	} else {
@@ -732,7 +627,7 @@ plotSuccessOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 1
 
 diffMatrixSuccessMethod <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
 		netType="barabasi-albert", accuracy=0.7, acstdv=0.3, brks=seq(-0.15,0.15,0.015), update="theta-up",
-		methods=c( "conf-perfect", "best-acc"), truncated='true', singleRun=TRUE, T_MAX=30 ){
+		methods=c( "conf-perfect", "best-acc"), truncated='true', singleRun=TRUE){
 	if (netType == "barabasi-albert"){
 		netParam <- edges
 		netParamText <- "Num. edges"
@@ -773,35 +668,26 @@ diffMatrixSuccessMethod <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq
 				if (net == "barabasi-albert"){
 					edge <- parVal
 				}
-				if (method == "best-acc"){
-					updateV <- "no-up"
-				} else {
-					updateV <- update
-				}
-				if (net == "barabasi-albert" & edge >= nodes){
-					dataMat[n,j] = NaN
-				}else{
-					filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_edges-",edge,
-						"_link-",link,"_model-",method,"_up-",updateV,"_acc-",accuracy,"_acstdv-",acstdv,".txt",sep="")
+				filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_edges-",edge,
+						"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_trunc-",truncated,".txt",sep="")
 #					print(filename)
-					data <- read.table(filename, header=T)
-					if (singleRun) {
-						#dataMat[n,j] = dataMat[n,j] + (sumSign * nrow(data[ data$pos == nodes, ]) / nrow( data[ data$pos == nodes | data$neg == nodes, ] ) )
-						dataMat[n,j] = dataMat[n,j] + (sumSign * nrow(data[ data$iter <= T_MAX & data$pos == nodes, ]) / nrow( data ) )
-					} else { 
-						dt <- data.table(data)
-						tmp <- dt[, list(pos=sum(pos[iter <= T_MAX & pos == nodes])/nodes, neg=sum(neg[iter <= T_MAX & neg == nodes])/nodes, nRuns=length(exp[iter <= T_MAX & (pos == nodes | neg == nodes)])), by=exp]
-						tmp$metric <- tmp$pos / tmp$nRuns
-						
-						line <- c(nodes, parVal, mean(tmp$metric) )
-						if (length(dataFrame) == 0){
-							dataFrame <- line
-						} else {
-							dataFrame <- rbind(dataFrame, line )
-						}
-						
-						dataMat[n,j] = dataMat[n,j] + (sumSign * mean(tmp$metric))
+				data <- read.table(filename, header=T)
+				if (singleRun) {
+					#dataMat[n,j] = dataMat[n,j] + (sumSign * nrow(data[ data$pos == nodes, ]) / nrow( data[ data$pos == nodes | data$neg == nodes, ] ) )
+					dataMat[n,j] = dataMat[n,j] + (sumSign * nrow(data[ data$pos == nodes, ]) / nrow( data ) )
+				} else { 
+					dt <- data.table(data)
+					tmp <- dt[, list(pos=sum(pos[pos == nodes])/nodes, neg=sum(neg[neg == nodes])/nodes, nRuns=length(exp[pos == nodes | neg == nodes])), by=exp]
+					tmp$metric <- tmp$pos / tmp$nRuns
+					
+					line <- c(nodes, parVal, mean(tmp$metric) )
+					if (length(dataFrame) == 0){
+						dataFrame <- line
+					} else {
+						dataFrame <- rbind(dataFrame, line )
 					}
+					
+					dataMat[n,j] = dataMat[n,j] + (sumSign * mean(tmp$metric))
 				}
 			}
 		}
@@ -843,7 +729,7 @@ diffMatrixSuccessMethod <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq
 
 diffMatrixSuccessFullnet <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.1, 0.6, 0.1), 
 		netType="barabasi-albert", accuracy=0.7, acstdv=0.3, brks=seq(-0.15,0.15,0.005), update="theta-up",
-		method="conf-perfect", truncated='true', singleRun=TRUE, T_MAX=30){
+		method="conf-perfect", truncated='true', singleRun=TRUE){
 	if (netType == "barabasi-albert"){
 		netParam <- edges
 		netParamText <- "Num. edges"
@@ -866,15 +752,15 @@ diffMatrixSuccessFullnet <- function(prefix, nodes_list=seq(11, 31, 4), edges=se
 		
 		### Assigning as base value for N-nodes the mean-success from the "full" network 
 		filename <- paste(prefix,"out_net-", "full", "_nodes-",nodes,"_edges-",edges[1],
-				"_link-",links[1],"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,".txt",sep="")
+				"_link-",links[1],"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_trunc-",truncated,".txt",sep="")
 #			print(filename)
 		data <- read.table(filename, header=T)
 		if (singleRun){
 			#dataMat[n,] = -nrow(data[ data$pos == nodes, ]) / nrow( data[ data$pos == nodes | data$neg == nodes, ] )
-			dataMat[n,] = -nrow(data[ data$iter <= T_MAX & data$pos == nodes, ]) / nrow( data )
+			dataMat[n,] = -nrow(data[ data$pos == nodes, ]) / nrow( data )
 		} else {
 			dt <- data.table(data)
-			tmp <- dt[, list(pos=sum(pos[iter <= T_MAX & pos == nodes])/nodes, neg=sum(neg[iter <= T_MAX & neg == nodes])/nodes, nRuns=length(exp[iter <= T_MAX & (pos == nodes | neg == nodes) ])), by=exp]
+			tmp <- dt[, list(pos=sum(pos[pos == nodes])/nodes, neg=sum(neg[neg == nodes])/nodes, nRuns=length(exp[pos == nodes | neg == nodes])), by=exp]
 			tmp$metric <- tmp$pos / tmp$nRuns
 			dataMat[n,] = -mean(tmp$metric)
 		}
@@ -890,23 +776,19 @@ diffMatrixSuccessFullnet <- function(prefix, nodes_list=seq(11, 31, 4), edges=se
 			if (net == "barabasi-albert"){
 				edge <- parVal
 			}
-			if (net == "barabasi-albert" & edge >= nodes) {
-				dataMat[n,j] = NaN
-			}else{
-				filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_edges-",edge,
-						"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,".txt",sep="")
-	#					print(filename)
-				data <- read.table(filename, header=T)
-				if (singleRun){
-					#dataMat[n,j] = dataMat[n,j] + (nrow(data[ data$pos == nodes, ]) / nrow( data[ data$pos == nodes | data$neg == nodes, ] ))
-					dataMat[n,j] = dataMat[n,j] + (nrow(data[ data$iter <= T_MAX & data$pos == nodes, ]) / nrow( data ))
-				} else {
-					dt <- data.table(data)
-					tmp <- dt[, list(pos=sum(pos[iter <= T_MAX & pos == nodes])/nodes, neg=sum(neg[iter <= T_MAX & neg == nodes])/nodes, nRuns=length(exp[iter <= T_MAX & (pos == nodes | neg == nodes)])), by=exp]
-					tmp$metric <- tmp$pos / tmp$nRuns
-					
-					dataMat[n,j] = dataMat[n,j] + mean(tmp$metric)
-				}
+			filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_edges-",edge,
+					"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_trunc-",truncated,".txt",sep="")
+#					print(filename)
+			data <- read.table(filename, header=T)
+			if (singleRun){
+				#dataMat[n,j] = dataMat[n,j] + (nrow(data[ data$pos == nodes, ]) / nrow( data[ data$pos == nodes | data$neg == nodes, ] ))
+				dataMat[n,j] = dataMat[n,j] + (nrow(data[ data$pos == nodes, ]) / nrow( data ))
+			} else {
+				dt <- data.table(data)
+				tmp <- dt[, list(pos=sum(pos[pos == nodes])/nodes, neg=sum(neg[neg == nodes])/nodes, nRuns=length(exp[pos == nodes | neg == nodes])), by=exp]
+				tmp$metric <- tmp$pos / tmp$nRuns
+				
+				dataMat[n,j] = dataMat[n,j] + mean(tmp$metric)
 			}
 			if (!is.nan(dataMat[n,j]) && dataMat[n,j] > 0) {positives <- rbind(positives, c(n,j))}
 		}
@@ -1026,7 +908,7 @@ plotTimeOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 
 								next
 							}
 							filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_edges-",edge,
-									"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,".txt",sep="")
+									"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_trunc-",truncated,".txt",sep="")
 							#print(filename)
 							data <- read.table(filename, header=T)
 							if (singleRun){
@@ -1089,8 +971,7 @@ riffle <- function(a, b) {
 plotTimeTwoMethodsOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=seq(2, 10, 2), links=seq(0.3, 0.8, 0.1), 
 		netTypes=c("erdos-renyi", "barabasi-albert"), accuracy=0.6, acstdv=0.12, updates=c("theta-up", "optim-up"),
 		methods=c("best-acc", "conf-perfect"), colours=rainbow(12), yrange=c(1,7), truncated='true', singleRun=TRUE,
-		ttest=TRUE, T_MAX=30){
-	par(mar = c(4, 5.5, 0, 0) + 0.3)
+		ttest=TRUE){
 	combolength <- length(methods)*length(netTypes)
 	methodscount <- length(methods)
 	if ('best-acc' %in% methods){
@@ -1117,7 +998,6 @@ plotTimeTwoMethodsOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=s
 		pval <- c()
 		for (net in netTypes){
 			for (edge in edges){
-				if (net == "barabasi-albert" && edge >= nodes) {next}
 				for (link in links){
 					meth_i <- 0
 					for (method in methods){
@@ -1129,9 +1009,22 @@ plotTimeTwoMethodsOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=s
 						if (net != "erdos-renyi" && link != links[1]) { ## looping on linking-probablity on if net is erdos-renyi
 							next
 						}
-						if (net != "erdos-renyi") {link <- links[1]}
+						if (net != "erdos-renyi") {link <- 0.3}
 						if (net != "barabasi-albert" && edge != edges[1]) { ## looping on edges on if net is barabasi-albert
 							next
+						}
+						filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_edges-",edge,
+								"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_trunc-",truncated,".txt",sep="")
+						#print(filename)
+						data <- read.table(filename, header=T)
+						if (singleRun){
+							#return( list(data[ data$pos == nodes | data$neg == nodes, 'iter'])  )
+							#data[ data$pos != nodes & data$neg != nodes, 'iter'] = 21
+							#dataList <- append( dataList, list(data[ , 'iter']) )
+							dataList <- append( dataList, list(data[ data$pos == nodes | data$neg == nodes, 'iter']) )
+						} else {
+							dt <- data.table(data)
+							dataFilt <- c(dataFilt, dt[, list(metric=mean(iter[pos == nodes | neg == nodes]) ), by=exp][,'metric'])
 						}
 						if (nodes == nodes_list[1]) {
 							ltxt <- paste(net,method,sep=" ")
@@ -1148,23 +1041,6 @@ plotTimeTwoMethodsOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=s
 							ltxt <- gsub("rand", "rule", ltxt)
 							legTxt <- c(legTxt, ltxt)
 						}
-						if (net == "barabasi-albert" && edge >= nodes) { ## looping on edges on if net is barabasi-albert
-							next
-						}
-						filename <- paste(prefix,"out_net-", net, "_nodes-",nodes,"_edges-",edge,
-								"_link-",link,"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,".txt",sep="")
-						#print(filename)
-						data <- read.table(filename, header=T)
-						if (singleRun){
-							#return( list(data[ data$pos == nodes | data$neg == nodes, 'iter'])  )
-							#data[ data$pos != nodes & data$neg != nodes, 'iter'] = 21
-							#dataList <- append( dataList, list(data[ , 'iter']) )
-							dataList <- append( dataList, list(data[ data$iter <= T_MAX & (data$pos == nodes | data$neg == nodes), 'iter']) )
-						} else {
-							dt <- data.table(data)
-							dataFilt <- c(dataFilt, dt[, list(metric=mean(iter[iter <= T_MAX & (pos == nodes | neg == nodes)]) ), by=exp][,'metric'])
-						}
-						
 						if (meth_i > 1 & ttest){
 							indx <- length(dataList)
 							#return(dataList)
@@ -1186,7 +1062,7 @@ plotTimeTwoMethodsOnNodes <- function(prefix, nodes_list=seq(11, 31, 4), edges=s
 		cols <- riffle( colours[1:(combolength/2)], rep("grey", (combolength/2)) )
 		cols_line <- riffle( rep("black", (combolength/2)), colours[1:(combolength/2)] )
 #		cols_line <- "black"
-		boxplot( dataFilt, at=positions[1:length(dataFilt)], boxwex=size, add=T, col=cols, axes=F, outcex=0.5, border=cols_line)
+		boxplot( dataFilt, at=positions, boxwex=size, add=T, col=cols, axes=F, outcex=0.5, border=cols_line)
 		
 		odd <- function(x) x%%2 != 0 
 		significant <- pval < 0.001

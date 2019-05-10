@@ -6,14 +6,12 @@ University of Sheffield, UK.
 '''
 
 import numpy as np
-import scipy.special
-import math
 import copy
 import numpy.random as rand
 import networkx as nx #@UnresolvedImport
 import matplotlib.pyplot as plt
-from DecNet.NetAgent import NetAgent
-from DecNet.MyTypes import AgentType, DriftDistribution, NetworkType, DecisionModel, UpdateModel
+from AAMAS2019.NetAgent import NetAgent
+from AAMAS2019.MyTypes import NetworkType, UpdateModel
 
 class SpaceNet:
     def __init__(self):
@@ -24,11 +22,9 @@ class DecNet:
     
     DEBUG = False
     
-    def __init__(self, netType, agentType, decModel, updateConf, numNodes, seed, debug=False):
+    def __init__(self, netType, decModel, updateConf, numNodes, seed, debug=False):
         self.graph = []
-        self.converged = False
         self.netType = netType
-        self.agentType = agentType
         self.decModel = decModel
         self.updateConf = updateConf
         self.numNodes = numNodes
@@ -59,22 +55,6 @@ class DecNet:
         self.accuracyMean = accuracyMean
         self.accuracyStdDev = accuracyStdDev
         self.truncatePoor = truncatePoor
-        
-    def setDDMAgent(self, driftDistribution, baseDrift, noiseStdDev, interrogationTime, args):
-        self.driftDistribution = driftDistribution
-        self.baseDrift = baseDrift
-        self.noiseStdDev = noiseStdDev
-        self.DDMstart = 0
-        self.dt = 0.01
-        self.interrogationTime = interrogationTime
-        if (self.driftDistribution == DriftDistribution.UNIFORM):
-            self.randomDriftRangeMin = args[0]
-            self.randomDriftRangeMax = args[1]
-        elif (self.driftDistribution == DriftDistribution.NORMAL):
-            self.driftStdDev = args[0]
-        elif (self.driftDistribution == DriftDistribution.FROM_ACCURACY):
-            self.accuracyMean = args[0]
-            self.accuracyStdDev = args[1]
         
     
     def initNetwork(self):
@@ -143,22 +123,7 @@ class DecNet:
     
     def getAllNodes(self):
         return self.graph.nodes()
-#         if (self.netType == NetworkType.FULLY_CONNECTED):
-#             return self.graph.nodes() #np.arange(self.numNodes)
-#         elif (self.netType == NetworkType.ERSOS_RENYI):
-#             return self.graph.nodes()
-#         elif (self.netType == NetworkType.BARABASI_ALBERT):
-#             return self.graph.nodes()
-#         elif (self.netType == NetworkType.SPACE):
-#             return self.graph.nodes()
         
-    def countDecided(self):
-        count = 0
-        for a in self.agents:
-            if (a.opinion != 0):
-                count += 1
-        return count
-
     def countOpinion(self, op):
         count = 0
         for a in self.agents:
@@ -166,81 +131,28 @@ class DecNet:
                 count += 1
         return count
     
-    def computeDriftFromAccuracy(self, accuracy, noise, interrogationTime):
-        return math.sqrt(2) * noise * scipy.special.erfcinv(2 - 2*accuracy)/math.sqrt(interrogationTime)
-    
     def initAgents(self, agentParams=[]):
         self.agents = []
         self.maxAcc = -float('inf')
         maxNeigh = -float('inf')
-#         if (self.netType == NetworkType.FROM_FILE or self.netType == NetworkType.FROM_FILE_FIXED_COMM):
-#             file = open(self.coordFile, 'r')
-#             line = file.readline()
-#             file.close()
-#             values = line.split('\t')[4:]
-#             for n in self.getAllNodes():
-#                 args = []
-#                 acc = float(values[n*4 +3])
-#                 args.append( acc ) #accuracy
-#                 self.agents.append( NetAgent(self.agentType, args, self.DEBUG) )
-#                 if (self.agents[n].accuracy > self.maxAcc ):
-#                     self.bestAccNode = n
-#                     self.maxAcc  = self.agents[n].accuracy
-#                 if (self.updateConf == UpdateModel.BELIEF_UP):
-#                     self.agents[n].setBeliefEpsilon(beliefEpsilon)
-#                     maxNeigh = max(maxNeigh, len(self.getNeighbours(n))) 
-#         else:
-        if (self.agentType == AgentType.SIMPLE):
-            for n in self.getAllNodes():
-                args = []
+
+        for n in self.getAllNodes():
+            acc = rand.normal(self.accuracyMean, self.accuracyStdDev)
+            while (acc <= 0 or acc >=  1):
                 acc = rand.normal(self.accuracyMean, self.accuracyStdDev)
-                while (acc <= 0 or acc >=  1):
-                    acc = rand.normal(self.accuracyMean, self.accuracyStdDev)
-                if (self.truncatePoor and acc < 0.5):
-                    acc = 1 - acc
-                args.append( acc ) #accuracy
-                self.agents.append( NetAgent(self.agentType, args, self.DEBUG) )
-                if (self.agents[n].accuracy > self.maxAcc ):
-                    self.bestAccNode = n
-                    self.maxAcc  = self.agents[n].accuracy
-                if (self.updateConf == UpdateModel.BELIEF_UP or self.updateConf == UpdateModel.FINITE_TIME):
-                    if len(agentParams)>0:
-                        self.agents[n].setBeliefEpsilon(agentParams[0])
-                    if len(agentParams)>1:
-                        self.agents[n].setFiniteTimeExponent(agentParams[1])
-                    maxNeigh = max(maxNeigh, len(self.getNeighbours(n))) 
-            if (self.DEBUG): print("MaxNeigh: " + str(maxNeigh) + " optimal Belief-Epsilon: " + str(1/maxNeigh if maxNeigh > 0 else np.Inf))
-            
-        elif (self.agentType == AgentType.DDM):
-            args = []
-            args.append( 0 ) # space reserved for driftRate 
-            args.append( self.noiseStdDev )
-            args.append( self.DDMstart )
-            args.append( self.dt )
-            args.append( self.interrogationTime )
-                
-            for n in self.getAllNodes():
-                # randomly select a drift
-                if (self.driftDistribution == DriftDistribution.UNIFORM):
-                    driftRate = self.baseDrift + rand.uniform(self.randomDriftRangeMin, self.randomDriftRangeMax)
-                elif (self.driftDistribution == DriftDistribution.NORMAL):
-                    driftRate = rand.normal(self.baseDrift, self.driftStdDev)
-                elif (self.driftDistribution == DriftDistribution.FROM_ACCURACY):
-                    acc = rand.normal(self.accuracyMean, self.accuracyStdDev)
-                    while (acc < 0 or acc >=  1):
-                        acc = rand.normal(self.accuracyMean, self.accuracyStdDev)
-                    driftRate = self.computeDriftFromAccuracy(acc, self.noiseStdDev, self.interrogationTime)
-                
-                args[0] = driftRate
-                self.agents.append( NetAgent(self.agentType, args, self.DEBUG) )
-                
-                if (self.decModel == DecisionModel.LOGODDS_DISTRIBUTION):
-                    self.agents[n].setMeanAccuracyAndStdDev(self.accuracyMean, self.accuracyStdDev)
-                
-                # store the maximum drift
-                if (self.agents[n].drift > self.maxAcc ):
-                    self.bestAccNode = n
-                    self.maxAcc  = self.agents[n].drift
+            if (self.truncatePoor and acc < 0.5):
+                acc = 1 - acc
+            self.agents.append( NetAgent(acc, self.DEBUG) )
+            if (self.agents[n].accuracy > self.maxAcc ):
+                self.bestAccNode = n
+                self.maxAcc  = self.agents[n].accuracy
+            if (self.updateConf == UpdateModel.BELIEF_UP or self.updateConf == UpdateModel.FINITE_TIME):
+                if len(agentParams)>0:
+                    self.agents[n].setBeliefEpsilon(agentParams[0])
+                if len(agentParams)>1:
+                    self.agents[n].setFiniteTimeExponent(agentParams[1])
+                maxNeigh = max(maxNeigh, len(self.getNeighbours(n))) 
+        if (self.DEBUG): print("MaxNeigh: " + str(maxNeigh) + " optimal Belief-Epsilon: " + str(1/maxNeigh if maxNeigh > 0 else np.Inf))
             
           
     def initDecisions(self):
@@ -249,11 +161,9 @@ class DecNet:
             line = file.readline()
             file.close()
             values = line.split('\t')[4:]
-#             for n in self.getAllNodes():
-#                 self.agents[n].opinion = int(values[n*4 +3])*2-1
                 
         for n in self.getAllNodes(): 
-            self.agents[n].initialiseOpinion(self.decModel, self.agents)
+            self.agents[n].initialiseOpinion(self.decModel)
             if (self.netType == NetworkType.FROM_FILE or self.netType == NetworkType.FROM_FILE_FIXED_COMM): self.agents[n].opinion = int(values[n*4 +3])*2-1
         if (self.DEBUG and self.updateConf == UpdateModel.BELIEF_UP):
             expectedConsensus = 0
@@ -300,22 +210,12 @@ class DecNet:
         return np.sqrt(min(abs(x_1 - x_2), self.areaSize - abs(x_1 - x_2))**2 + 
                     min(abs(y_1 - y_2), self.areaSize - abs(y_1 - y_2))**2)
        
-    def collectiveDecision(self, maxLoops, plot=None, plotTrajectory=False):
-        if (self.decModel == DecisionModel.BEST_ACC):
-            if (self.agents[self.bestAccNode].opinion == 1):
-                allPos = len(self.agents) 
-            else:
-                allPos = 0
-            allNeg = len(self.agents) - allPos
-            return 1, allPos, allNeg
-        
+    def collectiveDecision(self, maxLoops, plot=None, plotTrajectory=False):      
         count = 0
         ## Print out the report
         if (self.DEBUG):
             for n in self.getAllNodes():
                 print('Node ' + str(n) + ' : ' + str(self.agents[n].opinion) + ' : ' + str(self.agents[n].confidence))
-        
-        if (self.DEBUG): logFile = open(self.logFilename, 'w')
         
         if plot is not None and plotTrajectory:
             self.trajectories = []
@@ -362,13 +262,6 @@ class DecNet:
                         return 1, 0, len(self.agents)
         
             if (self.DEBUG): print("Positive nodes: " + str(self.countOpinion(1)) + " negative nodes: " + str(self.countOpinion(-1)) + " iteration: " + str(count) )
-            
-            if (self.DEBUG):
-                line = str(count) + "\t" + str(self.countOpinion(1)/self.numNodes) + "\t" 
-                for n in self.getAllNodes():
-                    line += str(self.agents[n].confidence) + "\t"
-                line += "\n"
-                logFile.write(line)
             
             if plot is not None:
                 if not plotTrajectory:
@@ -419,8 +312,6 @@ class DecNet:
                 print("conf: " + str(self.agents[n].confidence) )
             finalConfConsensus /= self.numNodes
             print("Final convergence to: " + str(finalConfConsensus) )
-        
-        if (self.DEBUG): logFile.close()
         
         avg_degree = np.mean([ v for v   in dict(nx.degree(self.graph)).values() ]) if not self.netType == NetworkType.FULLY_CONNECTED else self.numNodes-1
         clust = nx.average_clustering(self.graph) if not self.netType == NetworkType.FULLY_CONNECTED else 1

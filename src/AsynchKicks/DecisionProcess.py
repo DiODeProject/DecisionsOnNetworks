@@ -1,5 +1,5 @@
 '''
-Created on 27 Jan 2017
+Created on 15 Mar 2019
 
 @author: Andreagiovanni Reina.
 University of Sheffield, UK.
@@ -8,17 +8,17 @@ University of Sheffield, UK.
 import sys
 import os
 import configparser
-# import numpy as np
 import numpy.random as rand
 # import matplotlib.pyplot as plt
-# from statsmodels.graphics import plottools
 from matplotlib.backends.backend_pdf import PdfPages
-from DecNet import DecisionNet
-from DecNet.MyTypes import AgentType, DriftDistribution, NetworkType, DecisionModel, UpdateModel
+from AsynchKicks import DecisionNet
+from AsynchKicks.MyTypes import AgentType, DriftDistribution, NetworkType, UpdateModel
 
 DEBUG=True
 
-DEFAULT_PROPERTIES_FILENAME = "/Users/joefresna/DecisionsOnNetworks/conf/DecNet.config"
+DEFAULT_PROPERTIES_FILENAME = "/Users/joefresna/DecisionsOnNetworks/conf/AsynchK.config"
+
+update_dict = {'no-up': UpdateModel.NO_UPDATE, 'conf-kick': UpdateModel.CONF_KICK, 'thresh-kick': UpdateModel.THRESH_KICK }
 
 if __name__ == '__main__':
     if DEBUG: 
@@ -56,55 +56,13 @@ if __name__ == '__main__':
     else:
         print("Non valid input for parameter [Agent].agentType. Valid values are: 'simple', 'DDM'")
         sys.exit()
-    decModelStr = config.get('Agent', 'decisionModel')
-    if (decModelStr == 'conf-perfect'):
-        decModel = DecisionModel.CONFIDENCE
-    elif  (decModelStr == 'majority-rand'):
-        decModel = DecisionModel.MAJORITY_RAND
-    elif  (decModelStr == 'majority-bias'):
-        decModel = DecisionModel.MAJORITY_BIAS
-    elif  (decModelStr == 'majority-inhibit'):
-        decModel = DecisionModel.MAJORITY_INHIB
-    elif  (decModelStr == 'best-acc'):
-        decModel = DecisionModel.BEST_ACC
-    elif  (decModelStr == 'best-conf'):
-        decModel = DecisionModel.BEST_CONF
-    elif  (decModelStr == 'log-odds-perfect'):
-        decModel = DecisionModel.LOGODDS_PERFECT
-    elif  (decModelStr == 'log-odds-combo'):
-        decModel = DecisionModel.LOGODDS_COMBO
-    elif  (decModelStr == 'log-odds-distr'):
-        decModel = DecisionModel.LOGODDS_DISTRIBUTION
-    elif  (decModelStr == 'log-odds-approx'): 
-        decModel = DecisionModel.LOGODDS_APPROX
-    elif  (decModelStr == 'belief-init'): 
-        decModel = DecisionModel.BELIEF
+    maxTime = config.getint('Agent', 'max_time')
+    updateModelStr = config.get('Agent', 'updateModel')
+    if updateModelStr in update_dict:
+        updateModel = update_dict[updateModelStr]
     else:
-        print("Non valid input for parameter [Agent].decisionModel. Valid values are: 'conf-perfect', 'majority-rand', 'majority-bias', 'majority-inhibit', 'best-acc', 'best-conf', 'log-odds-perfect', 'log-odds-combo', 'log-odds-distr', 'log-odds-approx', 'belief-init' ")
+        print("Non valid input for parameter [Agent].updateModel. Valid values are: " + str(update_dict.keys()) )
         sys.exit()
-    maxLoops = config.getint('Agent', 'max_iterations')
-    updateConfStr = config.get('Agent', 'updateConf')
-    if (updateConfStr == 'no-up'):
-        updateConf = UpdateModel.NO_UPDATE
-    elif  (updateConfStr == 'theta-up'):
-        updateConf = UpdateModel.THETA_UPDATE
-    elif  (updateConfStr == 'theta-norm'):
-        updateConf = UpdateModel.THETA_NORM
-    elif  (updateConfStr == 'optim-up'):
-        updateConf = UpdateModel.OPTIMAL
-    elif  (updateConfStr == 'belief-up'):
-        updateConf = UpdateModel.BELIEF_UP
-    elif  (updateConfStr == 'finite-time'):
-        updateConf = UpdateModel.FINITE_TIME
-    else:
-        print("Non valid input for parameter [Agent].updateConf. Valid values are: 'no-up', 'theta-up', 'theta-norm', 'optim-up', 'belief-up', 'finite-time' ")
-        sys.exit()
-    if (updateConf == UpdateModel.BELIEF_UP or updateConf == UpdateModel.FINITE_TIME) :
-        beliefEpsilon = config.getfloat('Agent', 'beliefEpsilon')
-        if (updateConf == UpdateModel.FINITE_TIME) :
-            finiteTimeExponent = config.getfloat('Agent', 'finiteTimeExponent')
-    else:
-        beliefEpsilon = None
     ## -- SimpleAgent params
     if (agentType == AgentType.SIMPLE) :
         accuracyMean = config.getfloat('SimpleAgent', 'accuracyMean')
@@ -137,21 +95,10 @@ if __name__ == '__main__':
         DDMstart = 0
         dt = config.getfloat('DDM', 'dt')
         threshold = config.getfloat('DDM', 'threshold')
-        interrogationTime = config.getfloat('DDM', 'interrogationTime')
+        prior = config.getfloat('DDM', 'prior')
+#         interrogationTime = config.getfloat('DDM', 'interrogationTime')
     ## -- Network params
     numOfNodes = config.getint('Network', 'number_of_nodes')
-#     netTypesStr = config.get('Network', 'netType').split(',')
-#     netTypes = []
-#     for netTypeStr in netTypesStr :
-#         if (netTypeStr.lstrip() == 'power-law'):
-#             netTypes.append(NetworkType.POWER_LAW)
-#         elif (netTypeStr.lstrip() == 'erdos-renyi'):
-#             netTypes.append(NetworkType.ERSOS_RENYI)
-#         elif (netTypeStr.lstrip() == 'full'):
-#             netTypes.append(NetworkType.FULLY_CONNECTED)
-#         else:
-#             print("Non valid input for parameter [Network].netType. Error on value '" + netTypeStr.lstrip() + "'. Valid values are: 'full', 'erdos-renyi', 'power-law'")
-#             sys.exit()
     netTypeStr = config.get('Network', 'netType')
     if (netTypeStr == 'full'):
         netType =NetworkType.FULLY_CONNECTED
@@ -212,8 +159,7 @@ if __name__ == '__main__':
         print( "outputPdfFile: " + str(outputPdfFile) )
         print( "cluster: " + str(cluster) )
         print( "agentType: " + str(agentTypeStr) )
-        print( "decModel: " + str(decModelStr) )
-        print( "updateModel: " + str(updateConfStr) )
+        print( "updateModel: " + str(updateModelStr) )
         if (agentType == AgentType.SIMPLE) :
             print( "accuracyMean: " + str(accuracyMean) )
             print( "accuracyStdDev: " + str(accuracyStdDev) )
@@ -224,7 +170,8 @@ if __name__ == '__main__':
             print( "noiseStdDev: " + str(noiseStdDev) )
             print( "dt: " + str(dt) )
             print( "threshold: " + str(threshold) )
-            print( "interrogationTime: " + str(interrogationTime) )
+            print( "prior: " + str(prior) )
+#             print( "interrogationTime: " + str(interrogationTime) )
         print( "numOfNodes: " + str(numOfNodes) )
         print( "netType: " + str(netTypeStr) )
         if (netType == NetworkType.ERSOS_RENYI):
@@ -251,9 +198,7 @@ if __name__ == '__main__':
     if not cluster: os.makedirs(os.path.dirname(outputPdfFile), exist_ok=True)
     outFile = open(outputTxtFile, 'w')
     extraInfo = ''
-#     if (netType == DecisionNet.NetworkType.FULLY_CONNECTED):
-#         extraInfo = '\t acc ' # for fully-connected network we also estimate the expected group accuracy
-    line = 'seed \t exp \t run \t iter \t pos \t neg \t deg \t clust \t dstd \t cstd  \t conf \t confsd ' + extraInfo + '\n'
+    line = 'seed \t exp \t run \t iter \t pos \t neg \t conf' + extraInfo + '\n'
     outFile.write(line)
     
     for exp in range(1,numberOfExperiments+1):
@@ -261,7 +206,7 @@ if __name__ == '__main__':
         rand.seed(seed)
         
         ## init the DecNet object
-        decNet = DecisionNet.DecNet(netType, agentType, decModel, updateConf, numOfNodes, seed, DEBUG)
+        decNet = DecisionNet.DecNet(netType, agentType, updateModel, numOfNodes, seed, DEBUG)
         decNet.logFilename = "/Users/joefresna/DecisionsOnNetworks/data/conf-log" + str(exp) + ".txt"
         
         ## Generate a network
@@ -296,18 +241,12 @@ if __name__ == '__main__':
                 baseDrift = 0
                 args.append( accuracyMean )
                 args.append( accuracyStdDev )
-            decNet.setDDMAgent(driftDistribution, baseDrift, noiseStdDev, interrogationTime, args)
+            decNet.setDDMAgent(driftDistribution, baseDrift, noiseStdDev, threshold, prior, args)
         if (DEBUG): print("Initialising agents")
         agentParams = []
-        if (updateConf == UpdateModel.BELIEF_UP or updateConf == UpdateModel.FINITE_TIME) :
-            agentParams.append( beliefEpsilon )
-            if (updateConf == UpdateModel.FINITE_TIME) :
-                agentParams.append( finiteTimeExponent )
         decNet.initAgents(agentParams)
         
         for run in range(1,repetitionsPerDDM+1):
-            # Init the agents with their opinion
-            decNet.initDecisions()
             
 #             ## Plot the DDMs over time
 #             if not cluster:
@@ -334,16 +273,11 @@ if __name__ == '__main__':
                 #trajectoryPlotPrefix = outputPdfFile + '-exp' + str(exp) + '-run' + str(run) if plotTrajectory else None 
          
             ### Now, the nodes interact with each other
-            results = decNet.collectiveDecision(maxLoops, plot=pp, plotTrajectory=plotTrajectory )
+            results = decNet.collectiveDecision(maxTime, plot=pp )
             if not cluster:
                 #plt.show()
                 pp.close()
             
-#             extraInfo = ''
-#             if (decNet.netType == DecisionNet.NetworkType.FULLY_CONNECTED):
-#                 extraInfo = '\t' + str(results[3]) # for fully-connected network we also estimate the expected group accuracy
-#             line = str(seed) + '\t' + str(exp) + '\t' + str(run) + '\t' + str(results[0]) + '\t' + str(results[1]) + '\t' + str(results[2]) + extraInfo + '\n'
-            #line = str(seed) + '\t' + str(exp) + '\t' + str(run) + '\t' + str(results[0]) + '\t' + str(results[1]) + '\t' + str(results[2]) + '\t' + str(results[3]) + '\t' + str(results[4]) + '\t' + str(results[5]) + '\t' + str(results[6]) + '\n'
             line = str(seed) + '\t' + str(exp) + '\t' + str(run)
             for res in results:
                 line += '\t' + str(res)

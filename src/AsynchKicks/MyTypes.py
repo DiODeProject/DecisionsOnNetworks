@@ -1,32 +1,15 @@
 '''
-Created on 27 Jan 2017
+Created on 15 Mar 2019
 
 @author: Andreagiovanni Reina.
 University of Sheffield, UK.
 '''
 from enum import Enum
-
-class DecisionModel(Enum):
-    CONFIDENCE = 1
-    MAJORITY_RAND = 2
-    MAJORITY_BIAS = 3
-    MAJORITY_INHIB= 4
-    CDCI = 5
-    BEST_ACC = 6
-    BEST_CONF = 7
-    LOGODDS_PERFECT = 8
-    LOGODDS_COMBO = 9
-    LOGODDS_DISTRIBUTION = 10
-    LOGODDS_APPROX = 11
-    BELIEF = 12
-    
+  
 class UpdateModel(Enum):
     NO_UPDATE = 0
-    THETA_UPDATE = 1
-    THETA_NORM = 2
-    OPTIMAL = 3
-    BELIEF_UP = 4
-    FINITE_TIME = 5
+    THRESH_KICK = 1
+    CONF_KICK = 2
 
 class NetworkType(Enum):
     FULLY_CONNECTED = 0
