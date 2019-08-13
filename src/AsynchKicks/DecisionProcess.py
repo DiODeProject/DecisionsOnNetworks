@@ -8,6 +8,8 @@ University of Sheffield, UK.
 import sys
 import os
 import configparser
+import json
+import math
 import numpy.random as rand
 # import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -82,8 +84,9 @@ if __name__ == '__main__':
             sys.exit()
         if (driftDistribution == DriftDistribution.UNIFORM):
             baseDrift = config.getfloat('DDM', 'baseDrift')
-            randomDriftRangeMin= config.getfloat('DDM', 'randomDriftRangeMin')  # used for uniform distribution
-            randomDriftRangeMax= config.getfloat('DDM', 'randomDriftRangeMax')  # used for uniform distribution
+            randomDriftRangePlusMinus= config.getfloat('DDM', 'randomDriftRangePlusMinus')  # used for uniform distribution
+            randomDriftRangeMin= baseDrift - abs( randomDriftRangePlusMinus )
+            randomDriftRangeMax= baseDrift + abs( randomDriftRangePlusMinus )
         elif (driftDistribution == DriftDistribution.NORMAL):
             baseDrift = config.getfloat('DDM', 'baseDrift')
             driftStdDev = config.getfloat('DDM', 'driftStdDev') # used for normal distribution
@@ -92,10 +95,11 @@ if __name__ == '__main__':
             accuracyStdDev = config.getfloat('SimpleAgent', 'accuracyStdDev')
             
         noiseStdDev = config.getfloat('DDM', 'noiseStdDev')
-        DDMstart = 0
         dt = config.getfloat('DDM', 'dt')
         threshold = config.getfloat('DDM', 'threshold')
         prior = config.getfloat('DDM', 'prior')
+        useBayesRisk = config.getboolean('DDM', 'useBayesRisk')
+        costMatrix = json.loads( config['DDM']['costMatrix'] ) 
 #         interrogationTime = config.getfloat('DDM', 'interrogationTime')
     ## -- Network params
     numOfNodes = config.getint('Network', 'number_of_nodes')
@@ -114,6 +118,8 @@ if __name__ == '__main__':
         netType = NetworkType.FROM_FILE
     elif (netTypeStr == 'from-file-fixComm'):
         netType = NetworkType.FROM_FILE_FIXED_COMM
+    elif (netTypeStr == 'rgg-fixed-degree'):
+        netType = NetworkType.RGG_FIXED_DEGREE
     else:
         print("Non valid input for parameter [Network].netType. Error on value '" + netTypeStr + "'. Valid values are: 'full', 'erdos-renyi', 'barabasi-albert', 'space'")
         sys.exit()
@@ -126,11 +132,14 @@ if __name__ == '__main__':
             print("STOPPING PROCESS! With barabasi-albert networks the number of edges must be smaller than number of edges. Invalid parameterisation.")
             sys.exit()
     elif (netType == NetworkType.SPACE or netType == NetworkType.SOFT_RGG or 
-          netType == NetworkType.FROM_FILE or netType == NetworkType.FROM_FILE_FIXED_COMM ):
+          netType == NetworkType.FROM_FILE or netType == NetworkType.FROM_FILE_FIXED_COMM or netType == NetworkType.RGG_FIXED_DEGREE):
         areaSize  = config.getfloat('Network', 'area_size')
         periodicBound = config.getboolean('Network', 'periodic')
-        if (netType == NetworkType.SPACE or netType == NetworkType.SOFT_RGG or netType == NetworkType.FROM_FILE_FIXED_COMM):
+        if (netType == NetworkType.SPACE or netType == NetworkType.SOFT_RGG or netType == NetworkType.FROM_FILE_FIXED_COMM or netType == NetworkType.RGG_FIXED_DEGREE):
             commRadius  = config.getfloat('Network', 'communication_radius')
+        if (netType == NetworkType.RGG_FIXED_DEGREE): # convert the fixed degree (now called commRadius) in the actual commRadius
+            commRadius = math.sqrt( commRadius * areaSize * areaSize / (math.pi * numOfNodes) )
+            netType = NetworkType.SPACE # then it can be treated as normal SPACE networks
         if (netType == NetworkType.FROM_FILE or netType == NetworkType.FROM_FILE_FIXED_COMM):
             coordinatesFile  = config.get('Network', 'coordinates_file')
             
@@ -171,6 +180,8 @@ if __name__ == '__main__':
             print( "dt: " + str(dt) )
             print( "threshold: " + str(threshold) )
             print( "prior: " + str(prior) )
+            print( "useBayesRisk: " + str(useBayesRisk) )
+            print( "costMatrix: " + str(costMatrix) )
 #             print( "interrogationTime: " + str(interrogationTime) )
         print( "numOfNodes: " + str(numOfNodes) )
         print( "netType: " + str(netTypeStr) )
@@ -198,7 +209,7 @@ if __name__ == '__main__':
     if not cluster: os.makedirs(os.path.dirname(outputPdfFile), exist_ok=True)
     outFile = open(outputTxtFile, 'w')
     extraInfo = ''
-    line = 'seed \t exp \t run \t iter \t pos \t neg \t conf' + extraInfo + '\n'
+    line = 'seed \t exp \t run \t iter \t pos \t neg \t conf \t kick-avg \t kick-sd' + extraInfo + '\n'
     outFile.write(line)
     
     for exp in range(1,numberOfExperiments+1):
@@ -241,10 +252,11 @@ if __name__ == '__main__':
                 baseDrift = 0
                 args.append( accuracyMean )
                 args.append( accuracyStdDev )
-            decNet.setDDMAgent(driftDistribution, baseDrift, noiseStdDev, threshold, prior, args)
+            if useBayesRisk:
+                args.append(costMatrix)
+            decNet.setDDMAgent(driftDistribution, baseDrift, noiseStdDev, threshold, prior, useBayesRisk, args)
         if (DEBUG): print("Initialising agents")
-        agentParams = []
-        decNet.initAgents(agentParams)
+        decNet.initAgents()
         
         for run in range(1,repetitionsPerDDM+1):
             

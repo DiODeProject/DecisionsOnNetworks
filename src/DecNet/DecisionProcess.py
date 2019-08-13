@@ -8,8 +8,9 @@ University of Sheffield, UK.
 import sys
 import os
 import configparser
-# import numpy as np
+import json
 import numpy.random as rand
+import math
 # import matplotlib.pyplot as plt
 # from statsmodels.graphics import plottools
 from matplotlib.backends.backend_pdf import PdfPages
@@ -124,8 +125,9 @@ if __name__ == '__main__':
             sys.exit()
         if (driftDistribution == DriftDistribution.UNIFORM):
             baseDrift = config.getfloat('DDM', 'baseDrift')
-            randomDriftRangeMin= config.getfloat('DDM', 'randomDriftRangeMin')  # used for uniform distribution
-            randomDriftRangeMax= config.getfloat('DDM', 'randomDriftRangeMax')  # used for uniform distribution
+            randomDriftRangePlusMinus= config.getfloat('DDM', 'randomDriftRangePlusMinus')  # used for uniform distribution
+            randomDriftRangeMin= baseDrift - abs( randomDriftRangePlusMinus )
+            randomDriftRangeMax= baseDrift + abs( randomDriftRangePlusMinus )
         elif (driftDistribution == DriftDistribution.NORMAL):
             baseDrift = config.getfloat('DDM', 'baseDrift')
             driftStdDev = config.getfloat('DDM', 'driftStdDev') # used for normal distribution
@@ -134,10 +136,12 @@ if __name__ == '__main__':
             accuracyStdDev = config.getfloat('SimpleAgent', 'accuracyStdDev')
             
         noiseStdDev = config.getfloat('DDM', 'noiseStdDev')
-        DDMstart = 0
         dt = config.getfloat('DDM', 'dt')
         threshold = config.getfloat('DDM', 'threshold')
         interrogationTime = config.getfloat('DDM', 'interrogationTime')
+        interrogationTimeFromAccuracy = config.getboolean('DDM', 'interrogationTimeFromAccuracy')
+        prior = config.getfloat('DDM', 'prior')
+        costMatrix = json.loads( config['DDM']['costMatrix'] )
     ## -- Network params
     numOfNodes = config.getint('Network', 'number_of_nodes')
 #     netTypesStr = config.get('Network', 'netType').split(',')
@@ -167,6 +171,8 @@ if __name__ == '__main__':
         netType = NetworkType.FROM_FILE
     elif (netTypeStr == 'from-file-fixComm'):
         netType = NetworkType.FROM_FILE_FIXED_COMM
+    elif (netTypeStr == 'rgg-fixed-degree'):
+        netType = NetworkType.RGG_FIXED_DEGREE
     else:
         print("Non valid input for parameter [Network].netType. Error on value '" + netTypeStr + "'. Valid values are: 'full', 'erdos-renyi', 'barabasi-albert', 'space'")
         sys.exit()
@@ -178,12 +184,15 @@ if __name__ == '__main__':
         if (numOfEdges >= numOfNodes):
             print("STOPPING PROCESS! With barabasi-albert networks the number of edges must be smaller than number of edges. Invalid parameterisation.")
             sys.exit()
-    elif (netType == NetworkType.SPACE or netType == NetworkType.SOFT_RGG or 
-          netType == NetworkType.FROM_FILE or netType == NetworkType.FROM_FILE_FIXED_COMM ):
+    elif (netType == NetworkType.SPACE or netType == NetworkType.SOFT_RGG or netType == NetworkType.FROM_FILE or 
+          netType == NetworkType.FROM_FILE_FIXED_COMM or netType == NetworkType.RGG_FIXED_DEGREE ):
         areaSize  = config.getfloat('Network', 'area_size')
         periodicBound = config.getboolean('Network', 'periodic')
-        if (netType == NetworkType.SPACE or netType == NetworkType.SOFT_RGG or netType == NetworkType.FROM_FILE_FIXED_COMM):
+        if (netType == NetworkType.SPACE or netType == NetworkType.SOFT_RGG or netType == NetworkType.FROM_FILE_FIXED_COMM or netType == NetworkType.RGG_FIXED_DEGREE):
             commRadius  = config.getfloat('Network', 'communication_radius')
+        if (netType == NetworkType.RGG_FIXED_DEGREE): # convert the fixed degree (now called commRadius) in the actual commRadius
+            commRadius = math.sqrt( commRadius * areaSize * areaSize / (math.pi * numOfNodes) )
+            netType = NetworkType.SPACE # then it can be treated as normal SPACE networks
         if (netType == NetworkType.FROM_FILE or netType == NetworkType.FROM_FILE_FIXED_COMM):
             coordinatesFile  = config.get('Network', 'coordinates_file')
             
@@ -224,7 +233,10 @@ if __name__ == '__main__':
             print( "noiseStdDev: " + str(noiseStdDev) )
             print( "dt: " + str(dt) )
             print( "threshold: " + str(threshold) )
+            print( "interrogationTimeFromAccuracy: " + str(interrogationTimeFromAccuracy) )
             print( "interrogationTime: " + str(interrogationTime) )
+            print( "prior: " + str(prior) )
+            print( "costMatrix: " + str(costMatrix) )
         print( "numOfNodes: " + str(numOfNodes) )
         print( "netType: " + str(netTypeStr) )
         if (netType == NetworkType.ERSOS_RENYI):
@@ -296,7 +308,9 @@ if __name__ == '__main__':
                 baseDrift = 0
                 args.append( accuracyMean )
                 args.append( accuracyStdDev )
-            decNet.setDDMAgent(driftDistribution, baseDrift, noiseStdDev, interrogationTime, args)
+            if interrogationTimeFromAccuracy:
+                args.append(costMatrix)
+            decNet.setDDMAgent(driftDistribution, baseDrift, noiseStdDev, interrogationTimeFromAccuracy, interrogationTime, prior, args)
         if (DEBUG): print("Initialising agents")
         agentParams = []
         if (updateConf == UpdateModel.BELIEF_UP or updateConf == UpdateModel.FINITE_TIME) :

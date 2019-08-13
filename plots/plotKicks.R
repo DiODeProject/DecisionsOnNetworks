@@ -21,36 +21,50 @@ setyrange <- function(yaxis){
 							rng <- c(0,1)
 						}else{if(yaxis == "majgroup"){
 								rng <- c(0.5,1)
-						}else{
+							}else{if(yaxis == "bayesrisk"){
+									rng <- c(0,10)
+								}else{if(yaxis == "cascade"){
+										rng <- c(0,1)
+									}else{
 					rng <- c(0,1)
-				}}}}}}}}
+				}}}}}}}}}}
 	return(rng)
 }
 
 plotAll <-function(resdir){
-	pltdir <- "/Users/joefresna/DecisionsOnNetworks/results/kick_2-plt/"
+	pltdir <- "/Users/joefresna/DecisionsOnNetworks/results/kick_5-plt/"
 	system(paste("mkdir -p ", pltdir))
 	
 	#yaxes <- c("effectivity", "degree", "degree-scaled", "degree-stddev", "success", "clustering", "clustering-stddev", "time")
-	yaxes <- c("effectivity", "success", "time", "majgroup", "majpos", "pos")
+	#yaxes <- c("effectivity", "success", "time", "majgroup", "majpos", "pos", "bayesrisk", "cascade")
+	yaxes <- c("cascade")
 	darkcols <- brewer.pal(8, "Dark2")
 	for (yaxis in yaxes){
 		rng <- setyrange(yaxis)
 		#for (speed in speeds){
-			nodes_list <- seq(20, 100, 10)
-			pdf(paste(pltdir,yaxis,"_SP-on-nodes.pdf",sep=""))
-			if (yaxis == 'time') rng <- c(0,30)
-			res <- plotOnNodes(prefix=resdir, nodes_list=nodes_list, link_list=0.2, edge_list=3, range_list=c(0.2), xlabel="Nodes", 
-#					updatemodels=c("no-up", "conf-kick", "thresh-kick"),
-					updatemodels=c("conf-kick", "thresh-kick"),
+		for (netType in c("space","barabasi-albert","erdos-renyi")){
+		for (nodes in seq(20, 100, 10)){
+			#nodes_list <- seq(20, 100, 10)
+			pdf(paste(pltdir,yaxis,"_",netType,"_n-",nodes,"-on-sd.pdf",sep=""))
+			if (yaxis == 'time') rng <- c(0,2)
+			res <- plotOnStdDev(prefix=resdir, nodes_list=nodes, link_list=0.2, edge_list=3, range_list=c(0.2), #xlabel="Nodes", 
+					updatemodels=c("no-up", "conf-kick", "thresh-kick"),
+#					updatemodels=c("conf-kick", "thresh-kick"),
 #					driftranges=c(0.5, 1, 1.5), driftbases=c(0.05, 0.1, 0.2),
 #					driftranges=c(0.5, 1, 1.5), driftbases=c(0.05),
-					driftranges=c(0.5), driftbases=c(0.05, 0.1, 0.2),
-					netType="space", pbound='false', T_MAX=1000, xpar='range', boxptime=FALSE,
+					#driftStdDev_list=c(0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.5, 1),
+					driftStdDev_list=c(0.10, 0.20, 0.30, 0.40, 0.5),
+					#driftranges=c(0.10), driftbases=c(0.05, 0.1, 0.2), 
+					driftbases=c(0.05, 0.1, 0.2),
+					#netType="space", 
+					#netType="barabasi-albert", 
+					#netType="erdos-renyi",
+					netType=netType,
+					pbound='false', T_MAX=1000, xpar='range', boxptime=FALSE,
 					colours=darkcols, yaxis=yaxis, yrange=rng, legNodes=TRUE, quorum=0.8)
 			if (yaxis == yaxes[1]){ write.table(res, file = paste(resdir,"/finalTable_SP.txt",sep=""), sep="\t", col.names=TRUE, row.names=FALSE) }
 			dev.off()
-		#}
+		}}
 	}
 	return(0)
 	
@@ -402,7 +416,7 @@ plotOnNodes <- function(prefix, nodes_list=seq(11,47,12), link_list=seq(0.2, 0.8
 									netPar <- range
 								}
 								filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_link-",if(netType == 'space'){format(netPar,nsmall=2)}else{netPar},"_up-",update,
-										"_driftbase-",driftbase,"_driftrange-",driftrange,".txt",sep="")
+										"_driftbase-",driftbase,"_driftrange-",format(driftrange,nsmall=2),".txt",sep="")
 								print(filename)
 								data <- read.table(filename, header=T)
 								xparv <- nodes
@@ -516,6 +530,166 @@ plotOnNodes <- function(prefix, nodes_list=seq(11,47,12), link_list=seq(0.2, 0.8
 	}
 	return(dataPlot)
 }
+
+
+plotOnStdDev <- function(prefix, driftStdDev_list=c(0.25,0.5,1), nodes_list=40, link_list=seq(0.2, 0.8, 0.2), edge_list=seq(5, 20, 5), range_list=c(1), xlabel="Std dev on DDM drifts",
+		netType="erdos-renyi", pbound='true', T_MAX=50, xpar='range', boxptime=FALSE, driftbases=c(0.1), updatemodels=c("conf-kick"),
+		colours=rainbow(10), yrange=c(0,1), legNodes=FALSE, yaxis="effectivity", env='none', quorum=1, costError=20, costTime=1) {
+	
+	pntTypes = c(1,4,5,3,8,7,0,2,6,9,10,11,12,13)
+	
+	combolength <- length(nodes_list)*length(driftbases)*length(link_list)*length(edge_list)*length(range_list)*length(updatemodels)
+	
+	xmin <- min(driftStdDev_list)
+	xmax <- max(driftStdDev_list)
+	xrange <- (xmax - xmin)
+	if (yaxis == 'time' ){ offset <- 0.008*combolength} else {offset <- 0}
+	ylabname <- simpleCap( gsub("effectivity", paste("Convergence (quorum=",quorum,")",sep=""), gsub("success", paste("Group accuracy (quorum=",quorum,")",sep=""), gsub("time", "Timesteps", gsub("majgroup", "Largest proportion", yaxis)))) )
+	plot(c(xmin-(xrange*offset), xmax+(xrange*offset)), yrange, type='n', xlab=xlabel, ylab=ylabname, xaxt = "n")
+	axis(1, at=driftStdDev_list)
+	grid()
+	legTxt <- c()
+	collist <- c()
+	collistB <- c()
+	dataPlot <- data.frame()
+	for (driftStdDev in driftStdDev_list){
+		dataFilt <- c()
+		m <- 0
+		for (edge in edge_list){
+			for (link in link_list){
+				for (range in range_list){
+					for (update in updatemodels){
+						for (driftbase in driftbases){
+							for (nodes in nodes_list){
+								m <- m+1
+								if  (netType == 'erdos-renyi'){
+									netPar <- link
+								}
+								if  (netType == 'barabasi-albert'){
+									netPar <- edge
+								}
+								if  (netType == 'space'){
+									netPar <- range
+								}
+								filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_link-",if(netType == 'space'){format(netPar,nsmall=2)}else{netPar},"_up-",update,
+										"_driftbase-",driftbase,"_driftrange-",format(driftStdDev,nsmall=2),".txt",sep="")
+								print(filename)
+								data <- read.table(filename, header=T)
+								xparv <- driftStdDev
+								effectivity <- nrow(data[ data$iter <= T_MAX & (data$pos >= (nodes*quorum) | data$neg >= (nodes*quorum) ) , ]) / nrow(data)
+								majGroup <- c(data[ data$pos > data$neg, 'pos'] , data[ data$pos < data$neg, 'neg'] )
+								#print(majGroup)
+								majpos <- nrow(data[ data$pos > data$neg, ]) / length(majGroup)
+								success <- nrow(data[ data$pos >= (nodes*quorum), ]) / nrow(data)
+								times <- data[ data$pos == nodes | data$neg == nodes, 'iter']
+								bayesrisk <- (1-success)*costError + mean(times)*costTime
+								dataPlot <- rbind(dataPlot, c(netPar, m, driftStdDev, nodes, effectivity,
+												success, mean(times), mean(majGroup)/nodes, mean(data$pos)/nodes, 
+												mean(data$neg)/nodes, majpos, bayesrisk, mean(data$kickavg)/nodes,
+												1.96*sqrt( effectivity * (1-effectivity) / nrow(data) ),
+												1.96*sqrt( success * (1-success) / nrow(data) ),
+												1.96*sd(times)/sqrt(length(times)),
+												1.96*sd(majGroup)/sqrt(length(majGroup)),
+												effectivity - 1.96*sqrt( effectivity * (1-effectivity) / nrow(data) ), effectivity + 1.96*sqrt( effectivity * (1-effectivity) / nrow(data) ),
+												success - 1.96*sqrt( success * (1-success) / nrow(data) ), success + 1.96*sqrt( success * (1-success) / nrow(data) ),
+												mean(times) - 1.96*sd(times)/sqrt(length(times)), mean(times) + 1.96*sd(times)/sqrt(length(times)),
+												mean(data$kicksd)/nodes
+										))
+								
+								if (yaxis == 'time' && boxptime){
+									dataFilt <- append( dataFilt, list(data[ data$pos == nodes | data$neg == nodes, 'iter']) )
+								}
+								
+								if (xparv == driftStdDev_list[1]) {
+									#ltxt <- paste(update," ",substr(xpar,1,1),":",legv," n:",nodes,sep="")
+									ltxt <- paste("u:", update,"b:", driftbase," n:",nodes,sep="")
+									#ltxt <- gsub("rand", "rule", ltxt)
+									legTxt <- c(legTxt, ltxt)
+									if (legNodes){
+										if (m %% 2 == 0){
+											collist <- append(collist, 'white' )
+											collistB <- append(collistB, colours[m/length(nodes_list)] )
+										} else {
+											collist <- append(collist, colours[(m+1)/length(nodes_list)])
+											collistB <- append(collistB, 'black')
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		if (yaxis == 'time' && boxptime){
+			size <- xrange/80
+			positions = xparv + (seq(0,combolength-1) - floor((combolength-1)/2))*size*1.5
+			#print(positions)
+			if (legNodes){
+				boxplot( dataFilt, at=positions, boxwex=size, add=T, col=collist, axes=F, outcex=0.5, border=collistB, lwd=c(1,1.5), notch=TRUE)
+			} else {
+				boxplot( dataFilt, at=positions, boxwex=size, add=T, col=colours[1:combolength], axes=F, outcex=0.5)
+			}
+		}
+	}
+	#print(dataPlot)
+	colnames(dataPlot) <- c("netPar", "loop", "driftrange", "nodes", "effectivity", "success", "time", "majgroup", "pos", "neg", "majpos", "bayesrisk", "cascade",
+			"effectivity-stddev", "success-stddev", "time-stddev", "majgroup-stddev", "emin", "epl", "smin", "spl", "tmin", "tpl", "cascade-stddev" )
+	#print(colnames(dataPlot))
+	if (yaxis != 'time' || !boxptime){
+		for (m in seq(1,length(legTxt))){
+			if (legNodes){
+				countLines <- (((m-1) %% (length(nodes_list)*length(driftbases)))+1)
+				countPoints  <- (1+(m-countLines)/(length(nodes_list)*length(driftbases)))
+				points( dataPlot[dataPlot[,2]==m,'driftrange'], dataPlot[dataPlot[,2]==m, yaxis], pch=pntTypes[countPoints], col=colours[countPoints], cex=1, lwd=2, type='b', lty=countLines )
+			} else {
+				points( dataPlot[dataPlot[,2]==m,'driftrange'], dataPlot[dataPlot[,2]==m, yaxis], pch=pntTypes[m], col=colours[m], cex=1, lwd=2, type='b', lty=m )
+			}
+			if (yaxis=="confidence" || yaxis=="success" || yaxis=="time" || yaxis=="effectivity" || yaxis=="cascade"){
+				arrows(dataPlot[dataPlot[,2]==m,'driftrange'], dataPlot[dataPlot[,2]==m, yaxis]-dataPlot[dataPlot[,2]==m, paste(yaxis,"-stddev",sep="")], 
+						dataPlot[dataPlot[,2]==m,'driftrange'], dataPlot[dataPlot[,2]==m, yaxis]+dataPlot[dataPlot[,2]==m, paste(yaxis,"-stddev",sep="")], 
+						length=0.05, angle=90, code=3, col=colours[countPoints] ) #lty=(((m-1) %% length(updates))+1))
+			}
+		}
+	}
+	
+	legpos <- 'bottomright'
+	legpos2 <- 'bottom'
+	if (yaxis == 'time' ){ legpos <- 'topright'; legpos2 <- 'top' }
+	if (yaxis == 'clustering' || yaxis == 'deegree' || yaxis == 'degree-scaled'){ legpos <- 'topleft'; legpos2 <- 'top'  }
+	if (legNodes){
+		#legend(legpos, paste("Nodes",nodes_list), pch=pntTypes[1:length(nodes_list)], col=colours[1:length(nodes_list)], lty=0, cex=1, lwd=2, bg='white' )
+		if (yaxis == 'time' && boxptime){
+			legend(legpos, paste("d-range:", nodes_list), pch=22, col=c('black','gray'), pt.bg=c('gray','white'), lty=-1, cex=1, lwd=2, bg='white' )
+		} else {
+			lgndtxt <- c()
+			for (node in nodes_list){
+				for (dbase in driftbases){
+					#for (update in updatemodels){
+					lgndtxt <- append(lgndtxt, paste("b:",dbase," n:",node,sep="") )
+				}
+			}
+			legend(legpos, lgndtxt, pch=-1, col='black', lty=seq(1,length(lgndtxt)), cex=1, lwd=2, bg='white' )			
+			#legend(legpos, paste("d-range:", driftranges), pch=-1, col='black', lty=seq(1,length(driftranges)), cex=1, lwd=2, bg='white' )			
+		}
+		if  (netType == 'erdos-renyi'){
+			txtL <- paste("Link P: ", link_list, sep="")
+		}
+		if  (netType == 'barabasi-albert'){
+			txtL <- paste("Edges: ", edge_list, sep="")
+		}
+		if  (netType == 'space'){
+			txtL <- paste("Range: ", range_list, sep="")
+		}
+#		txtL <- paste("d-Base: ", driftbases, sep="")
+		txtL <- paste("up: ", updatemodels, sep="")
+		legend(legpos2, txtL, pch=pntTypes[1:(combolength/length(nodes_list))], col=colours[1:(combolength/length(nodes_list))], lty=-1, cex=1, lwd=2, bg='white' )
+	} else {
+		legend(legpos, legTxt, pch=pntTypes[1:combolength], col=colours[1:combolength], lty=0, cex=1, lwd=2, bg='white' )
+	}
+	return(dataPlot)
+}
+
 
 plotOnEpsilon <- function(prefix, nodes_list=seq(11,47,12), range=0.05, edges=5, link=0.2, xlabel="Epsilon", numRuns=100,
 		netType="space", accuracy=0.6, acstdv=0.12, methods=c("conf-perfect"), pbound='false', T_MAX=50, xpar='epsilon',

@@ -74,11 +74,6 @@ class DdmAgent:
         drift = math.sqrt(2) * noise * scipy.special.erfcinv(2 - 2*acc)/math.sqrt(time)
         pdf = np.exp( (-(decVar - drift * time)**2) / (2 * time * noise * noise) ) / math.sqrt(2 * math.pi * time * noise * noise)
         return pdf*prob
-    
-    def integrationFuncDrift(self, drift, decVar, noise, time, sign):
-        prob = norm.pdf(drift, self.popMean, self.popStdDev)
-        pdf = np.exp( (-(decVar - drift * time)**2) / (2 * time * noise * noise) ) / math.sqrt(2 * math.pi * time * noise * noise)
-        return pdf*prob
 
     ## Function computing the combined Log odds from distribution (assuming only drift distribution is known) 
     def logOddsDistribution(self, decisionVariable):
@@ -89,12 +84,32 @@ class DdmAgent:
         #print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) )
         return math.log( numerator[0]/denominator[0] )
 
+    def integrationFuncDriftNormal(self, drift, decVar, noise, time, sign):
+        prob = norm.pdf(drift, self.popMean, self.popStdDev)
+        pdf = np.exp( (-(decVar - (sign*abs(drift)) * time)**2) / (2 * time * noise * noise) ) / math.sqrt(2 * math.pi * time * noise * noise)
+        return pdf*prob
+    
+    def integrationFuncDriftUniform(self, drift, decVar, noise, time, sign):
+        pdf = np.exp( (-(decVar - (sign*abs(drift)) * time)**2) / (2 * time * noise * noise) ) / math.sqrt(2 * math.pi * time * noise * noise)
+        return pdf
+
     ## Function computing the combined Log odds from distribution (assuming only drift distribution is known) 
     def estimateConfFromDistribution(self, decisionVariable, time):
-        numerator   = integrate.quad( self.integrationFuncAcc, 0, 1, args=( abs(decisionVariable), self.noiseStdDev, time, +1 ) )
-        denominator = integrate.quad( self.integrationFuncAcc, 0, 1, args=( abs(decisionVariable), self.noiseStdDev, time, -1 ) )
-        #print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) )
-        return math.log( numerator[0]/denominator[0] )
+#         numerator   = integrate.quad( self.integrationFuncAcc, 0, 1, args=( abs(decisionVariable), self.noiseStdDev, time, +1 ) )
+#         denominator = integrate.quad( self.integrationFuncAcc, 0, 1, args=( abs(decisionVariable), self.noiseStdDev, time, -1 ) )
+#         print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) )
+#         print("ratio: " + str(numerator[0]/denominator[0]) + " and log: " + str(math.log( numerator[0]/denominator[0] )))
+#         numerator   = integrate.quad( self.integrationFuncDriftUniform, self.popMean-(self.popStdDev*np.sqrt(12)/2), self.popMean+(self.popStdDev*np.sqrt(12)/2), args=( abs(decisionVariable), self.noiseStdDev, time, +1 ) )
+#         denominator   = integrate.quad( self.integrationFuncDriftUniform, self.popMean-(self.popStdDev*np.sqrt(12)/2), self.popMean+(self.popStdDev*np.sqrt(12)/2), args=( abs(decisionVariable), self.noiseStdDev, time, -1 ) )
+#         print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) + " range is [" + str(self.popMean-(self.popStdDev*np.sqrt(12)/2)) + "," + str(self.popMean+(self.popStdDev*np.sqrt(12)/2)) + "]" )
+#         print("ratio: " + str(numerator[0]/denominator[0]) + " and log: " + str(math.log( numerator[0]/denominator[0] )))
+        numerator   = integrate.quad( self.integrationFuncDriftNormal, -np.inf, np.inf, args=( abs(decisionVariable), self.noiseStdDev, time, +1 ) )
+        denominator   = integrate.quad( self.integrationFuncDriftNormal, -np.inf, np.inf, args=( abs(decisionVariable), self.noiseStdDev, time, -1 ) )
+#         print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) + " range is [" + str(self.popMean-(self.popStdDev*np.sqrt(12)/2)) + "," + str(self.popMean+(self.popStdDev*np.sqrt(12)/2)) + "]" )
+        #print(" num:" + str(numerator[0]) + " den:" + str(denominator[0]) + "ratio: " + str(numerator[0]/denominator[0]) + " and log: " + str(math.log( numerator[0]/denominator[0] )))
+        
+        priorComponent = 0 if (self.prior == 0.5) else math.log( self.prior/ (1-self.prior))  # if the sing of decisionVariable is negative, through math.copysign I change the sing of the priorComponent (which is equivalent to power to -1 the log argument)
+        return math.log( numerator[0]/denominator[0] ) + math.copysign(priorComponent, decisionVariable)
     
     def logOddsApprox(self, decisionVariable):
         fittedline = np.poly1d([0.1663, 0.5309, 0.1238])
@@ -144,7 +159,8 @@ class DdmAgent:
         if (self.updateModel == UpdateModel.THRESH_KICK):
             kicksize = thresh
         if (self.updateModel == UpdateModel.CONF_KICK):
-            kicksize = kickerOpinion * self.estimateConfFromDistribution(thresh, time) - self.prior
+            priorComponent = 0 if (self.prior == 0.5) else math.log( self.prior/ (1-self.prior))  # if the sing of kickerOpinion is negative, through math.copysign I change the sing of the priorComponent (which is equivalent to power to -1 the log argument)
+            kicksize = kickerOpinion * self.estimateConfFromDistribution(thresh, time) - math.copysign(priorComponent, kickerOpinion) 
         self.y += kicksize 
         #print("kicksize is " + str(kicksize) + " which put my y to " + str(self.y))
         self.DDMintegration.append(self.y)

@@ -36,6 +36,7 @@ class NetworkType(Enum):
     SOFT_RGG = 4
     FROM_FILE = 5
     FROM_FILE_FIXED_COMM = 6
+    RGG_FIXED_DEGREE = 7
     
 class DriftDistribution(Enum):
     UNIFORM = 0

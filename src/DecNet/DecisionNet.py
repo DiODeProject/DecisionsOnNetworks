@@ -7,6 +7,7 @@ University of Sheffield, UK.
 
 import numpy as np
 import scipy.special
+import scipy.integrate as integrate
 import math
 import copy
 import numpy.random as rand
@@ -60,13 +61,13 @@ class DecNet:
         self.accuracyStdDev = accuracyStdDev
         self.truncatePoor = truncatePoor
         
-    def setDDMAgent(self, driftDistribution, baseDrift, noiseStdDev, interrogationTime, args):
+    def setDDMAgent(self, driftDistribution, baseDrift, noiseStdDev, interrogationTimeFromAccuracy, interrogationTime, prior, args):
         self.driftDistribution = driftDistribution
         self.baseDrift = baseDrift
         self.noiseStdDev = noiseStdDev
         self.DDMstart = 0
         self.dt = 0.01
-        self.interrogationTime = interrogationTime
+        self.prior = prior
         if (self.driftDistribution == DriftDistribution.UNIFORM):
             self.randomDriftRangeMin = args[0]
             self.randomDriftRangeMax = args[1]
@@ -75,6 +76,14 @@ class DecNet:
         elif (self.driftDistribution == DriftDistribution.FROM_ACCURACY):
             self.accuracyMean = args[0]
             self.accuracyStdDev = args[1]
+        # computing the interrogation time if that must give a given average accuracy as from Eq. (5.17) of Bogacz et al. Psy.Rev. 2006
+        if interrogationTimeFromAccuracy:
+            costMatrix = args[-1]
+            expectedAcc = interrogationTime # I assume that the function parameter interrogationTime accepted the expected accuracy  
+            self.interrogationTime = costMatrix[1]/costMatrix[0] * (2*expectedAcc - 1) * math.log( expectedAcc / (1-expectedAcc) ) / ( 2*math.log(expectedAcc / (1-expectedAcc)) - 1/expectedAcc + 1/(1-expectedAcc) )
+            if (self.DEBUG): print("Computed interrogation time (for expected accuracy of " + str(expectedAcc) + ") is " + str(self.interrogationTime) )
+        else:
+            self.interrogationTime = interrogationTime
         
     
     def initNetwork(self):
@@ -212,12 +221,25 @@ class DecNet:
             if (self.DEBUG): print("MaxNeigh: " + str(maxNeigh) + " optimal Belief-Epsilon: " + str(1/maxNeigh if maxNeigh > 0 else np.Inf))
             
         elif (self.agentType == AgentType.DDM):
+            # computing the optimal starting point, if prior probability is != 0.5
+            if (self.driftDistribution == DriftDistribution.UNIFORM):
+                self.driftStdDev = (self.randomDriftRangeMax - self.randomDriftRangeMin) / np.sqrt(12)
+                meanDrift = self.baseDrift + ((self.randomDriftRangeMax + self.randomDriftRangeMin)/2.0)
+            else:
+                meanDrift = self.baseDrift
+            if (not self.prior == 0.5):
+                self.DDMstart = ( (self.noiseStdDev**2) / (2.0*meanDrift) ) * math.log(self.prior / (1-self.prior))
+                print("Mean DDM is " + str(meanDrift) + ' and start value is ' + str(self.DDMstart))
+                self.DDMstart = integrate.quad( self.integrationFuncStartDdmNormal, -np.inf, np.inf, args=( self.noiseStdDev, self.prior ) )[0]
+                print('Integral of start values is ' + str(self.DDMstart))
+                
             args = []
             args.append( 0 ) # space reserved for driftRate 
             args.append( self.noiseStdDev )
             args.append( self.DDMstart )
             args.append( self.dt )
             args.append( self.interrogationTime )
+            args.append( self.prior )
                 
             for n in self.getAllNodes():
                 # randomly select a drift
@@ -230,18 +252,19 @@ class DecNet:
                     while (acc < 0 or acc >=  1):
                         acc = rand.normal(self.accuracyMean, self.accuracyStdDev)
                     driftRate = self.computeDriftFromAccuracy(acc, self.noiseStdDev, self.interrogationTime)
-                
-                args[0] = driftRate
+                # revert negative drifts
+                args[0] = abs(driftRate)
                 self.agents.append( NetAgent(self.agentType, args, self.DEBUG) )
                 
-                if (self.decModel == DecisionModel.LOGODDS_DISTRIBUTION):
-                    self.agents[n].setMeanAccuracyAndStdDev(self.accuracyMean, self.accuracyStdDev)
+                if (self.driftDistribution  == DriftDistribution.FROM_ACCURACY):
+                    self.agents[n].setPopMeanAndStdDev(self.accuracyMean, self.accuracyStdDev)
+                else:
+                    self.agents[n].setPopMeanAndStdDev(self.baseDrift, self.driftStdDev)
                 
                 # store the maximum drift
                 if (self.agents[n].drift > self.maxAcc ):
                     self.bestAccNode = n
                     self.maxAcc  = self.agents[n].drift
-            
           
     def initDecisions(self):
         if (self.netType == NetworkType.FROM_FILE or self.netType == NetworkType.FROM_FILE_FIXED_COMM):

@@ -7,6 +7,9 @@ University of Sheffield, UK.
 
 import numpy as np
 import scipy.special
+import scipy.optimize
+from scipy.stats import norm
+import scipy.integrate as integrate
 import math
 import numpy.random as rand
 import networkx as nx #@UnresolvedImport
@@ -58,22 +61,35 @@ class DecNet:
         self.accuracyStdDev = accuracyStdDev
         self.truncatePoor = truncatePoor
         
-    def setDDMAgent(self, driftDistribution, baseDrift, noiseStdDev, threshold, prior, args):
+    def setDDMAgent(self, driftDistribution, baseDrift, noiseStdDev, threshold, prior, useBayesRisk, args):
         self.driftDistribution = driftDistribution
         self.baseDrift = baseDrift
         self.noiseStdDev = noiseStdDev
         self.DDMstart = 0
         self.dt = 0.01
-        self.threshold = threshold
         self.prior = prior
         if (self.driftDistribution == DriftDistribution.UNIFORM):
             self.randomDriftRangeMin = args[0]
             self.randomDriftRangeMax = args[1]
+            meanDrift = self.baseDrift + ((self.randomDriftRangeMax + self.randomDriftRangeMin)/2.0)
         elif (self.driftDistribution == DriftDistribution.NORMAL):
             self.driftStdDev = args[0]
+            meanDrift = self.baseDrift
         elif (self.driftDistribution == DriftDistribution.FROM_ACCURACY):
             self.accuracyMean = args[0]
             self.accuracyStdDev = args[1]
+        if useBayesRisk:
+            costMatrix = args[-1]
+            def compute_BR_opt_thresh(thresh): # from Eq. (5.6) of Bogacz et al. Psy.Rev. 2006
+                return costMatrix[1]/costMatrix[0] * 2 * (meanDrift**2) / (self.noiseStdDev**2) - 4 * meanDrift * thresh / (self.noiseStdDev**2) + np.exp( - 2 * meanDrift * thresh / (self.noiseStdDev**2) ) -  np.exp( 2 * meanDrift * thresh / (self.noiseStdDev**2) )            
+            self.threshold = scipy.optimize.fsolve( compute_BR_opt_thresh, 0.25*meanDrift*costMatrix[1]/costMatrix[0], maxfev=1000 )[0] # second parameter is the starting point which is set to the approximation of Eq. (5.7) of Bogacz et al. Psy.Rev. 2006 
+            if (self.DEBUG): print("Computed threshold with BR cost matrix is: " + str(self.threshold) )
+            #if (self.DEBUG): print("CHECK: " + str( compute_BR_opt_thresh(self.threshold)) )
+            integrResult = integrate.quad( self.integrationFuncDdmThreshNormal, -np.inf, np.inf, args=( costMatrix, self.noiseStdDev ) )
+            self.threshold = integrResult[0]
+            if (self.DEBUG): print("Computed (with integral with error: " + str(integrResult[1]) + ") threshold with BR cost matrix is: " + str(self.threshold) )
+        else:
+            self.threshold = threshold
         
     
     def initNetwork(self):
@@ -160,7 +176,20 @@ class DecNet:
     def computeDriftFromAccuracy(self, accuracy, noise, interrogationTime):
         return math.sqrt(2) * noise * scipy.special.erfcinv(2 - 2*accuracy)/math.sqrt(interrogationTime)
     
-    def initAgents(self, agentParams=[]):
+    def integrationFuncDdmThreshNormal(self, drift, costMatrix, noiseStdDev):
+        prob = norm.pdf(drift, self.baseDrift, self.driftStdDev)
+        drift = abs(drift)
+        def compute_BR_opt_thresh(thresh): # from Eq. (5.6) of Bogacz et al. Psy.Rev. 2016
+            return costMatrix[1]/costMatrix[0] * 2 * (drift**2) / (noiseStdDev**2) - 4 * drift * thresh / (noiseStdDev**2) + np.exp( - 2 * drift * thresh / (noiseStdDev**2) ) -  np.exp( 2 * drift * thresh / (noiseStdDev**2) )             
+        pdf = scipy.optimize.fsolve( compute_BR_opt_thresh, 0.25*drift*costMatrix[1]/costMatrix[0], maxfev=1000 )[0] # second parameter is the starting point which is set to the approximation of Eq. (5.7) of Bogacz et al. Psy.Rev. 2016
+        return pdf*prob
+    
+    def integrationFuncStartDdmNormal(self, drift, noiseStdDev, prior):
+        prob = norm.pdf(drift, self.baseDrift, self.driftStdDev)
+        pdf = ( (noiseStdDev**2) / (2.0*abs(drift)) ) * math.log(prior / (1-prior)) # assuming always positive drifts (flipped if negative) 
+        return pdf*prob
+    
+    def initAgents(self):
         self.agents = []
         self.maxAcc = -float('inf')
         if (self.agentType == AgentType.SIMPLE):
@@ -181,10 +210,14 @@ class DecNet:
             # computing the optimal starting point, if prior probability is != 0.5
             if (self.driftDistribution == DriftDistribution.UNIFORM):
                 self.driftStdDev = (self.randomDriftRangeMax - self.randomDriftRangeMin) / np.sqrt(12)
-            if (not self.prior == 0.5):
                 meanDrift = self.baseDrift + ((self.randomDriftRangeMax + self.randomDriftRangeMin)/2.0)
-                self.DDMstart = ( (self.noiseStdDev**2) / (2.0*meanDrift) ) * np.log(self.prior / (1-self.prior))
-                #print("Mean DDM is " + str(meanDrift) + ' and start value is ' + str(self.DDMstart))
+            else:
+                meanDrift = self.baseDrift
+            if (not self.prior == 0.5):
+                self.DDMstart = ( (self.noiseStdDev**2) / (2.0*meanDrift) ) * math.log(self.prior / (1-self.prior))
+                print("Mean DDM is " + str(meanDrift) + ' and start value is ' + str(self.DDMstart))
+                self.DDMstart = integrate.quad( self.integrationFuncStartDdmNormal, -np.inf, np.inf, args=( self.noiseStdDev, self.prior ) )[0]
+                print('Integral of start values is ' + str(self.DDMstart))
                 
             args = []
             args.append( 0 ) # space reserved for driftRate 
@@ -205,8 +238,8 @@ class DecNet:
                     while (acc < 0 or acc >=  1):
                         acc = rand.normal(self.accuracyMean, self.accuracyStdDev)
                     driftRate = self.computeDriftFromAccuracy(acc, self.noiseStdDev, self.interrogationTime)
-                
-                args[0] = driftRate
+                # revert negative drifts
+                args[0] = abs(driftRate)
                 self.agents.append( DdmAgent(n, self.agentType, self.updateModel, args, self.DEBUG) )
                 
                 if (self.driftDistribution  == DriftDistribution.FROM_ACCURACY):
@@ -273,9 +306,9 @@ class DecNet:
         plot.savefig()
         plt.close(fig)
         
-    def plotDDM(self, plot, time, aID):
+    def plotDDM(self, plot, _time, aID):
         fig, axs = plt.subplots(1,1)
-        axs.set_title('Agent ' + str(aID))
+        axs.set_title('Agent ' + str(aID) + "[drift: " + str(self.agents[aID].drift) +"]")
         axs.axhline(y=self.threshold,  xmin=0, xmax=1, ls='dashed', color='r')
         axs.axhline(y=0, xmin=0, xmax=1, ls='dashed', color='lightgray')
         axs.axhline(y=-self.threshold, xmin=0, xmax=1, ls='dashed', color='g')
@@ -290,6 +323,7 @@ class DecNet:
         if plot is not None: self.plotNet(plot, time) ## Draw initial network
         
         countDecided = self.countDecided() # using this counter rather than function countDecided() to save time 
+        cascadeCounts = []
         while (time < maxTime):
             time += self.dt
             agentsWhoKicked = []
@@ -302,6 +336,7 @@ class DecNet:
                         if (self.DEBUG): print('Node ' + str(a) + ' kicked at time ' + str(time) + ' to ' + str(agent.opinion))
                         if plot is not None: self.plotDDM(plot, time, a)
             if plot is not None and len(agentsWhoKicked) > 0: self.plotNet(plot, time)
+            cascadeCount = len(agentsWhoKicked)
             while len(agentsWhoKicked) > 0:
                 np.random.shuffle(agentsWhoKicked) # todo: handle the case of two kicks in opposite directions at the same time... shall they be processed sequentially or synchronously?
                 cascadeKicks = []
@@ -316,8 +351,12 @@ class DecNet:
                             if plot is not None: self.plotDDM(plot, time, neigh)
                 agentsWhoKicked.clear()
                 agentsWhoKicked.extend(cascadeKicks)
+                cascadeCount += len(agentsWhoKicked)
                 if plot is not None: self.plotNet(plot, time)
             #if (self.numNodes == self.countOpinion(1) or self.numNodes == self.countOpinion(-1)): # consensus reached
+            if cascadeCount > 0: 
+                cascadeCounts.append(cascadeCount)
+                if (self.DEBUG): print("Cascade: " + str(cascadeCounts))
             if self.numNodes == countDecided: # all agents decided
                 break
             
@@ -325,7 +364,8 @@ class DecNet:
         for n in self.getAllNodes():
             ys.append(self.agents[n].y)
             
-        return time, self.countOpinion(1), self.countOpinion(-1), np.mean(ys)
+        #cascadeCounts = cascadeCounts + [0]*(self.numNodes-len(cascadeCounts))
+        return time, self.countOpinion(1), self.countOpinion(-1), np.mean(ys), np.mean(cascadeCounts), np.std(cascadeCounts)
     
         
     def solveOutOfBoundConditions(self, agent, currentPos, saveTrajectory):

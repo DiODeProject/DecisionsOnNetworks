@@ -29,8 +29,7 @@ FINITE_TIME_EXPONENT=0.5
 ### Unnecessary for this analysis 
 DDM_DRIFT_DIST='normal'
 DDM_BASE_DRIFT=0.1
-DDM_DRIFT_RANGE_MIN=-1
-DDM_DRIFT_RANGE_MAX=1
+DDM_DRIFT_RANGE_PLUS_MINUS=1
 DDM_DRIFT_STD_DEV=0.3
 DDM_NOISE_STD_DEV=0.5
 #THRESHOLD=1
@@ -150,8 +149,7 @@ do
 													-e "s|FINITE_TIME_EXPONENT|${FINITE_TIME_EXPONENT}|" \
 													-e "s|DDM_DRIFT_DIST|${DDM_DRIFT_DIST}|" \
 													-e "s|DDM_BASE_DRIFT|${DDM_BASE_DRIFT}|" \
-													-e "s|DDM_DRIFT_RANGE_MIN|${DDM_DRIFT_RANGE_MIN}|" \
-													-e "s|DDM_DRIFT_RANGE_MAX|${DDM_DRIFT_RANGE_MAX}|" \
+													-e "s|DDM_DRIFT_RANGE_PLUS_MINUS|${DDM_DRIFT_RANGE_PLUS_MINUS}|" \
 													-e "s|DDM_DRIFT_STD_DEV|${DDM_DRIFT_STD_DEV}|" \
 													-e "s|DDM_NOISE_STD_DEV|${DDM_NOISE_STD_DEV}|" \
 													-e "s|THRESHOLD|${THRESHOLD}|" \

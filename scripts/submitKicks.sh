@@ -6,7 +6,7 @@ mkdir -p ${CONF_DIR}
 TEMPLATE_SETTINGS="${PROJECT_HOME}/conf/AsynchK.template.config"
 PYPATH="${PROJECT_HOME}/src/"
 EXEC_FILE="${PROJECT_HOME}/src/AsynchKicks/DecisionProcess.py"
-OUTPUT_DATA_DIR="${PROJECT_HOME}/kick_2/"
+OUTPUT_DATA_DIR="${PROJECT_HOME}/kick_5/"
 
 SEED=221189
 NUM_EXP=100
@@ -17,26 +17,31 @@ AGENT_TYPE='DDM'
 UPDATE_MODEL_LIST=( 'no-up' 'thresh-kick' 'conf-kick' )
 
 ### Unnecessary for this analysis 
-DDM_DRIFT_DIST='uniform'
+DDM_DRIFT_DIST='normal'
 DDM_BASE_DRIFT_LIST=( 0.05 0.1 0.2 )
-DDM_DRIFT_RANGE_LIST=( 0.5 1 1.5 )
-#DDM_DRIFT_RANGE_MIN=-1
-#DDM_DRIFT_RANGE_MAX=1
-DDM_DRIFT_STD_DEV=0.3
+#DDM_DRIFT_RANGE_LIST=( 0.25 0.50 1.00 )
+DDM_DRIFT_RANGE=0.5
+#DDM_DRIFT_STD_DEV_LIST=( 0.25 0.50 1.00 )
+#DDM_DRIFT_STD_DEV_LIST=( 0.10 0.15 0.20 0.30 0.40 )
+DDM_DRIFT_STD_DEV_LIST=($(seq 0.10 0.10 0.50))
 DDM_NOISE_STD_DEV=0.5
 THRESHOLD=10
+PRIOR_DIST=0.5
+USE_BAYES_RISK='true'
+COST_MATRIX_T=1
+COST_MATRIX_E=20
 
 #NUM_NODES=20
 NUM_NODES_LIST=($(seq 20 10 100))
-#NET_TYPE_LIST=('erdos-renyi' 'barabasi-albert' 'space')
-NET_TYPE_LIST=('space')
-#NET_TYPE_LIST=('erdos-renyi')
+NET_TYPE_LIST=('erdos-renyi' 'barabasi-albert' 'space')
+#NET_TYPE_LIST=('space')
+#NET_TYPE_LIST=('erdos-renyi' 'barabasi-albert')
 #LINK_PROBABILITY_LIST=($(seq 0.2 0.1 0.8))
-LINK_PROBABILITY_LIST=(0.2 0.4 0.6 0.8)
-#LINK_PROBABILITY_LIST=(0.2)
+#LINK_PROBABILITY_LIST=(0.2 0.4 0.6 0.8)
+LINK_PROBABILITY_LIST=(0.2 0.6)
 #NUM_EDGES=3
-NUM_EDGES_LIST=($(seq 3 3 12))
-#NUM_EDGES_LIST=($(seq 5 5 20))
+#NUM_EDGES_LIST=($(seq 3 3 12))
+NUM_EDGES_LIST=(3 9)
 #INTERACTION_RADIUS_LIST=($(seq 0.05 0.05 0.3))
 #INTERACTION_RADIUS_LIST=($(seq 0.20 0.05 0.35))
 INTERACTION_RADIUS_LIST=( 0.20 )
@@ -68,7 +73,7 @@ do
 				do
 					for NUM_EDGES in ${NUM_EDGES_LIST[*]}
 					do
-						for DDM_DRIFT_RANGE in ${DDM_DRIFT_RANGE_LIST[*]}
+						for DDM_DRIFT_STD_DEV in ${DDM_DRIFT_STD_DEV_LIST[*]}
 						do
 							for DDM_BASE_DRIFT in ${DDM_BASE_DRIFT_LIST[*]}
 							do
@@ -100,7 +105,7 @@ do
 									NET_PAR=${INTERACTION_RADIUS}
 								fi
 								
-								JOB_PARAM="net-${NET_TYPE}_nodes-${NUM_NODES}_link-${NET_PAR}_up-${UPDATE_MODEL}_driftbase-${DDM_BASE_DRIFT}_driftrange-${DDM_DRIFT_RANGE}"
+								JOB_PARAM="net-${NET_TYPE}_nodes-${NUM_NODES}_link-${NET_PAR}_up-${UPDATE_MODEL}_driftbase-${DDM_BASE_DRIFT}_driftrange-${DDM_DRIFT_STD_DEV}"
 								OUT_TXT="${OUTPUT_DATA_DIR}out_${JOB_PARAM}.txt"
 									
 								CONF_FILE="${CONF_DIR}/kick_${JOB_PARAM}.config"
@@ -116,11 +121,14 @@ do
 									-e "s|UPDATE_MODEL|${UPDATE_MODEL}|" \
 									-e "s|DDM_DRIFT_DIST|${DDM_DRIFT_DIST}|" \
 									-e "s|DDM_BASE_DRIFT|${DDM_BASE_DRIFT}|" \
-									-e "s|DDM_DRIFT_RANGE_MIN|-${DDM_DRIFT_RANGE}|" \
-									-e "s|DDM_DRIFT_RANGE_MAX|${DDM_DRIFT_RANGE}|" \
+									-e "s|DDM_DRIFT_RANGE_PLUS_MINUS|${DDM_DRIFT_RANGE}|" \
 									-e "s|DDM_DRIFT_STD_DEV|${DDM_DRIFT_STD_DEV}|" \
 									-e "s|DDM_NOISE_STD_DEV|${DDM_NOISE_STD_DEV}|" \
 									-e "s|THRESHOLD|${THRESHOLD}|" \
+									-e "s|PRIOR_DIST|${PRIOR_DIST}|" \
+									-e "s|USE_BAYES_RISK|${USE_BAYES_RISK}|" \
+									-e "s|COST_MATRIX_T|${COST_MATRIX_T}|" \
+									-e "s|COST_MATRIX_E|${COST_MATRIX_E}|" \
 									-e "s|NET_TYPE|${NET_TYPE}|" \
 									-e "s|NUM_NODES|${NUM_NODES}|" \
 									-e "s|NUM_EDGES|${NUM_EDGES}|" \
