@@ -9,7 +9,11 @@ import sys
 import os
 import configparser
 import json
+import numpy as np
 import numpy.random as rand
+import scipy.optimize
+import scipy.integrate as integrate
+from scipy.stats import norm
 import math
 # import matplotlib.pyplot as plt
 # from statsmodels.graphics import plottools
@@ -310,6 +314,17 @@ if __name__ == '__main__':
                 args.append( accuracyStdDev )
             if interrogationTimeFromAccuracy:
                 args.append(costMatrix)
+                def integrationFuncDdmThreshNormal(drift, costMatrix, noiseStdDev, baseDrift, driftStdDev):
+                    prob = norm.pdf(drift, baseDrift, driftStdDev)
+                    drift = abs(drift)
+                    def compute_BR_opt_thresh(thresh): # from Eq. (5.6) of Bogacz et al. Psy.Rev. 2016
+                        return costMatrix[1]/costMatrix[0] * 2 * (drift**2) / (noiseStdDev**2) - 4 * drift * thresh / (noiseStdDev**2) + np.exp( - 2 * drift * thresh / (noiseStdDev**2) ) -  np.exp( 2 * drift * thresh / (noiseStdDev**2) )             
+                    pdf = scipy.optimize.fsolve( compute_BR_opt_thresh, 0.25*drift*costMatrix[1]/costMatrix[0], maxfev=1000 )[0] # second parameter is the starting point which is set to the approximation of Eq. (5.7) of Bogacz et al. Psy.Rev. 2016
+                    return pdf*prob
+                integrResult = integrate.quad( integrationFuncDdmThreshNormal, -np.inf, np.inf, args=( costMatrix, noiseStdDev, baseDrift, driftStdDev ) )
+                thresh = integrResult[0]
+                expectedAccuracy = 1 - ( 1.0/ ( 1 + np.exp(2*baseDrift*thresh/(noiseStdDev**2)) ))
+                interrogationTime = expectedAccuracy
             decNet.setDDMAgent(driftDistribution, baseDrift, noiseStdDev, interrogationTimeFromAccuracy, interrogationTime, prior, args)
         if (DEBUG): print("Initialising agents")
         agentParams = []
@@ -366,4 +381,5 @@ if __name__ == '__main__':
     
     outFile.close()   
     if DEBUG: print("Process Ended")
+    
     

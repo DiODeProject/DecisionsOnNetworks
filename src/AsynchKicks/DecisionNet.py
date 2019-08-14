@@ -80,14 +80,17 @@ class DecNet:
             self.accuracyStdDev = args[1]
         if useBayesRisk:
             costMatrix = args[-1]
-            def compute_BR_opt_thresh(thresh): # from Eq. (5.6) of Bogacz et al. Psy.Rev. 2006
-                return costMatrix[1]/costMatrix[0] * 2 * (meanDrift**2) / (self.noiseStdDev**2) - 4 * meanDrift * thresh / (self.noiseStdDev**2) + np.exp( - 2 * meanDrift * thresh / (self.noiseStdDev**2) ) -  np.exp( 2 * meanDrift * thresh / (self.noiseStdDev**2) )            
-            self.threshold = scipy.optimize.fsolve( compute_BR_opt_thresh, 0.25*meanDrift*costMatrix[1]/costMatrix[0], maxfev=1000 )[0] # second parameter is the starting point which is set to the approximation of Eq. (5.7) of Bogacz et al. Psy.Rev. 2006 
-            if (self.DEBUG): print("Computed threshold with BR cost matrix is: " + str(self.threshold) )
-            #if (self.DEBUG): print("CHECK: " + str( compute_BR_opt_thresh(self.threshold)) )
-            integrResult = integrate.quad( self.integrationFuncDdmThreshNormal, -np.inf, np.inf, args=( costMatrix, self.noiseStdDev ) )
-            self.threshold = integrResult[0]
-            if (self.DEBUG): print("Computed (with integral with error: " + str(integrResult[1]) + ") threshold with BR cost matrix is: " + str(self.threshold) )
+            integrateOverAllValues = True
+            if integrateOverAllValues:
+                integrResult = integrate.quad( self.integrationFuncDdmThreshNormal, -np.inf, np.inf, args=( costMatrix, self.noiseStdDev ) )
+                self.threshold = integrResult[0]
+                if (self.DEBUG): print("Computed (with integral with error: " + str(integrResult[1]) + ") threshold with BR cost matrix is: " + str(self.threshold) )
+            else:
+                def compute_BR_opt_thresh(thresh): # from Eq. (5.6) of Bogacz et al. Psy.Rev. 2006
+                    return costMatrix[1]/costMatrix[0] * 2 * (meanDrift**2) / (self.noiseStdDev**2) - 4 * meanDrift * thresh / (self.noiseStdDev**2) + np.exp( - 2 * meanDrift * thresh / (self.noiseStdDev**2) ) -  np.exp( 2 * meanDrift * thresh / (self.noiseStdDev**2) )            
+                self.threshold = scipy.optimize.fsolve( compute_BR_opt_thresh, 0.25*meanDrift*costMatrix[1]/costMatrix[0], maxfev=1000 )[0] # second parameter is the starting point which is set to the approximation of Eq. (5.7) of Bogacz et al. Psy.Rev. 2006 
+                if (self.DEBUG): print("Computed threshold with BR cost matrix is: " + str(self.threshold) )
+                #if (self.DEBUG): print("CHECK: " + str( compute_BR_opt_thresh(self.threshold)) )
         else:
             self.threshold = threshold
         
