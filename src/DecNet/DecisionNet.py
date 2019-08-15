@@ -347,6 +347,7 @@ class DecNet:
         while (self.numNodes > self.countOpinion(1) and self.numNodes > self.countOpinion(-1) and count < maxLoops):
         #while (count < maxLoops):
             count += 1
+            if (self.updateConf == UpdateModel.NO_UPDATE): break
             if plot is not None: 
                 ## Draw initial network
                 fig, axs = plt.subplots(1,2)

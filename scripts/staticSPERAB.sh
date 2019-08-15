@@ -35,7 +35,7 @@ DDM_DRIFT_RANGE_PLUS_MINUS=1
 DDM_DRIFT_STD_DEV_LIST=($(seq 0.10 0.10 0.50))
 DDM_NOISE_STD_DEV=0.5
 THRESHOLD=1
-INTERR_TIME_FROM_ACC='true'
+I_TIME_FROM_ACC='true'
 INTERR_TIME=10
 PRIOR_DIST=0.5
 COST_MATRIX_T=1
@@ -108,7 +108,7 @@ do
 									then
 										continue
 									fi
-									if [ "$NET_TYPE" != "space" ] && [ $INTERACTION_RADIUS != ${INTERACTION_RADIUS_LIST[0]} ];
+									if [ "$NET_TYPE" != "rgg-fixed-degree" ] && [ $INTERACTION_RADIUS != ${INTERACTION_RADIUS_LIST[0]} ];
 									then
 										continue
 									fi
@@ -116,10 +116,10 @@ do
 									#then
 									#	continue
 									#fi
-									if [ "$UPDATE_CONF" == "optim-up" ] && [ $BELIEF_EPSILON != ${BELIEF_EPSILON_LIST[0]} ];
-									then
-										continue
-									fi
+									#if [ "$UPDATE_CONF" == "optim-up" ] && [ $BELIEF_EPSILON != ${BELIEF_EPSILON_LIST[0]} ];
+									#then
+									#	continue
+									#fi
 									
 									NET_PAR=0
 									if [ "$NET_TYPE" == "erdos-renyi" ];
@@ -130,7 +130,7 @@ do
 									then
 										NET_PAR=${NUM_EDGES}
 									fi
-									if [ "$NET_TYPE" == "space" ];
+									if [ "$NET_TYPE" == "rgg-fixed-degree" ];
 									then
 										NET_PAR=${INTERACTION_RADIUS}
 									fi
@@ -158,8 +158,8 @@ do
 										-e "s|DDM_DRIFT_STD_DEV|${DDM_DRIFT_STD_DEV}|" \
 										-e "s|DDM_NOISE_STD_DEV|${DDM_NOISE_STD_DEV}|" \
 										-e "s|THRESHOLD|${THRESHOLD}|" \
+										-e "s|I_TIME_FROM_ACC|${I_TIME_FROM_ACC}|" \
 										-e "s|INTERR_TIME|${INTERR_TIME}|" \
-										-e "s|INTERR_TIME_FROM_ACC|${INTERR_TIME_FROM_ACC}|" \
 										-e "s|PRIOR_DIST|${PRIOR_DIST}|" \
 										-e "s|COST_MATRIX_T|${COST_MATRIX_T}|" \
 										-e "s|COST_MATRIX_E|${COST_MATRIX_E}|" \

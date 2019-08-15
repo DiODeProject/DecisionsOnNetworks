@@ -16,7 +16,7 @@ setyrange <- function(yaxis){
 			}else{ if(yaxis == "confidence-stddev" ){
 					rng <- c(0,10)
 				}else{ if(yaxis == "effectivity" ){
-						rng <- c(0.95,1)
+						rng <- c(0.,1)
 #						rng <- c(0.,1)
 					}else{if(yaxis == "success" ){
 #							rng <- c(0.,1)
@@ -28,6 +28,9 @@ setyrange <- function(yaxis){
 }
 
 plotAll <-function(resdir){
+	pltdir <- "/Users/joefresna/DecisionsOnNetworks/results/synch_1-plt/"
+	system(paste("mkdir -p ", pltdir))
+	
 	#yaxes <- c("effectivity", "degree", "degree-scaled", "degree-stddev", "success", "clustering", "clustering-stddev", "time")
 	yaxes <- c("effectivity", "success", "time")
 	darkcols <- brewer.pal(8, "Dark2")
@@ -63,54 +66,54 @@ plotAll <-function(resdir){
 		#for (speed in speeds){
 			nodes_list <- seq(20, 100, 10)
 			#if (yaxis == 'time') {nodes_list <- seq(20, 100, 20)}
-			pdf(paste("/Users/joefresna/DecisionsOnNetworks/results/static_lin2-plt/",yaxis,"_BA-on-nodes.pdf",sep=""))
-			res <- plotOnNodes(prefix=resdir, nodes_list=nodes_list, link_list=0.2, edge_list=if(yaxis == 'time'){c(3,12)}else{seq(3, 12, 3)}, range_list=c(0), xlabel="Nodes", boxptime=FALSE,
-					netType="barabasi-albert", accuracy=0.6, acstdv=0.12, methods=c("conf-perfect"), pbound='false', T_MAX=1000, xpar='edge',
+			pdf(paste(pltdir,yaxis,"_BA-on-nodes.pdf",sep=""))
+			res <- plotOnNodes(prefix=resdir, nodes_list=nodes_list, link_list=0.2, range_list=c(0), edge_list=c(3,9), #edge_list=if(yaxis == 'time'){c(3,12)}else{seq(3, 12, 3)}, 
+					netType="barabasi-albert", accuracy=0.1, acstdv=0.20, methods=c("log-odds-distr"), pbound='false', T_MAX=1000, xpar='edge', boxptime=FALSE, xlabel="Nodes", 
 #					updates=c("finite-time"), colours=rainbow(5), yaxis=yaxis, yrange=rng, epsilon=0.05, legNodes=FALSE, env=1, quorum=1)
 #					updates=c("optim-up", "finite-time"), colours=rainbow(5), yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
-					updates=c("optim-up", "belief-up"), colours=darkcols, yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
+					updates=c("optim-up", "no-up"), colours=darkcols, yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
 			if (yaxis == yaxes[1]){ write.table(res, file = paste(resdir,"/finalTable_BA.txt",sep=""), sep="\t", col.names=TRUE, row.names=FALSE) }
 			dev.off()
-			pdf(paste("/Users/joefresna/DecisionsOnNetworks/results/static_lin2-plt/",yaxis,"_ER-on-nodes.pdf",sep=""))
-			res <- plotOnNodes(prefix=resdir, nodes_list=nodes_list, link_list=if(yaxis == 'time'){c(0.2,0.8)}else{seq(0.2, 0.8, 0.2)}, edge_list=3, range_list=c(0), xlabel="Nodes",
-					netType="erdos-renyi", accuracy=0.6, acstdv=0.12, methods=c("conf-perfect"), pbound='false', T_MAX=1000, xpar='link', boxptime=FALSE,
+			pdf(paste(pltdir,yaxis,"_ER-on-nodes.pdf",sep=""))
+			res <- plotOnNodes(prefix=resdir, nodes_list=nodes_list, edge_list=3, range_list=c(0), link_list=c(0.2,0.6),#link_list=if(yaxis == 'time'){c(0.2,0.8)}else{seq(0.2, 0.8, 0.2)}, 
+					netType="erdos-renyi", accuracy=0.1, acstdv=0.20, methods=c("log-odds-distr"), pbound='false', T_MAX=1000, xpar='link', boxptime=FALSE, xlabel="Nodes",
 #					updates=c("finite-time"), colours=rainbow(5), yaxis=yaxis, yrange=rng, epsilon=0.05, legNodes=FALSE, env=1, quorum=1)
 #					updates=c("optim-up", "finite-time"), colours=rainbow(5), yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
-					updates=c("optim-up", "belief-up"), colours=darkcols, yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
+					updates=c("optim-up", "no-up"), colours=darkcols, yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
 			if (yaxis == yaxes[1]){ write.table(res, file = paste(resdir,"/finalTable_ER.txt",sep=""), sep="\t", col.names=TRUE, row.names=FALSE) }
 			dev.off()
-			pdf(paste("/Users/joefresna/DecisionsOnNetworks/results/static_lin2-plt/",yaxis,"_SP-on-nodes.pdf",sep=""))
+			pdf(paste(pltdir,yaxis,"_SP-on-nodes.pdf",sep=""))
 			if (yaxis == 'time') rng <- c(0,30)
-			res <- plotOnNodes(prefix=resdir, nodes_list=nodes_list, link_list=0.2, edge_list=3, range_list=if(yaxis == 'time'){c(0.2,0.35)}else{seq(0.20, 0.35, 0.05)}, xlabel="Nodes",
-					netType="space", accuracy=0.6, acstdv=0.12, methods=c("conf-perfect"), pbound='false', T_MAX=1000, xpar='range', boxptime=FALSE,
+			res <- plotOnNodes(prefix=resdir, nodes_list=nodes_list, link_list=0.2, edge_list=3, range_list=0, #range_list=if(yaxis == 'time'){c(0.2,0.35)}else{seq(0.20, 0.35, 0.05)},
+					netType="rgg-fixed-degree", accuracy=0.1, acstdv=0.20, methods=c("log-odds-distr"), pbound='false', T_MAX=1000, xpar='range', boxptime=FALSE, xlabel="Nodes", 
 #					updates=c("finite-time"), colours=rainbow(5), yaxis=yaxis, yrange=rng, epsilon=0.05, legNodes=FALSE, env=1, quorum=1)
 #					updates=c("optim-up", "finite-time"), colours=rainbow(5), yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
-					updates=c("optim-up", "belief-up"), colours=darkcols, yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
+					updates=c("optim-up", "no-up"), colours=darkcols, yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
 			if (yaxis == yaxes[1]){ write.table(res, file = paste(resdir,"/finalTable_SP.txt",sep=""), sep="\t", col.names=TRUE, row.names=FALSE) }
 			dev.off()
 		#}
 	}
+	return(0)
 	
 	rng <- c(0,20)
 	yaxis <- "time"
 	nodes_list <- seq(20, 100, 20)
-	pdf(paste("/Users/joefresna/DecisionsOnNetworks/results/static_lin2-plt/",yaxis,"_BA-on-nodes_b.pdf",sep=""))
+	pdf(paste(pltdir,yaxis,"_BA-on-nodes_b.pdf",sep=""))
 	plotOnNodes(prefix=resdir, nodes_list=nodes_list, link_list=0.2, edge_list=seq(3, 12, 3), range_list=c(0), xlabel="Nodes",
 			netType="barabasi-albert", accuracy=0.6, acstdv=0.12, methods=c("conf-perfect"), pbound='false', T_MAX=1000, xpar='edge', boxptime=TRUE,
 			updates=c("optim-up", "belief-up"), colours=darkcols, yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
 	dev.off()
 	#return(res)
-	pdf(paste("/Users/joefresna/DecisionsOnNetworks/results/static_lin2-plt/",yaxis,"_ER-on-nodes_b.pdf",sep=""))
+	pdf(paste(pltdir,yaxis,"_ER-on-nodes_b.pdf",sep=""))
 	plotOnNodes(prefix=resdir, nodes_list=nodes_list, link_list=seq(0.2, 0.8, 0.2), edge_list=3, range_list=c(0), xlabel="Nodes",
 			netType="erdos-renyi", accuracy=0.6, acstdv=0.12, methods=c("conf-perfect"), pbound='false', T_MAX=1000, xpar='link', boxptime=TRUE,
 			updates=c("optim-up", "belief-up"), colours=darkcols, yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
 	dev.off()
-	pdf(paste("/Users/joefresna/DecisionsOnNetworks/results/static_lin2-plt/",yaxis,"_SP-on-nodes_b.pdf",sep=""))
+	pdf(paste(pltdir,yaxis,"_SP-on-nodes_b.pdf",sep=""))
 	plotOnNodes(prefix=resdir, nodes_list=nodes_list, link_list=0.2, edge_list=3, range_list=seq(0.20, 0.35, 0.05), xlabel="Nodes",
 			netType="space", accuracy=0.6, acstdv=0.12, methods=c("conf-perfect"), pbound='false', T_MAX=1000, xpar='range', boxptime=TRUE,
 			updates=c("optim-up", "belief-up"), colours=darkcols, yaxis=yaxis, yrange=rng, epsilon=0, legNodes=TRUE, env=1, quorum=1)
 	dev.off()
-	return(0)
 	for (yaxis in yaxes){
 		rng <- setyrange(yaxis)
 		#for (speed in speeds){
@@ -434,13 +437,15 @@ plotOnNodes <- function(prefix, nodes_list=seq(11,47,12), link_list=seq(0.2, 0.8
 							if  (netType == 'barabasi-albert'){
 								netPar <- edge
 							}
-							if  (netType == 'space'){
+							if  (netType == 'space' || netType == 'rgg-fixed-degree'){
 								netPar <- range
 							}
-							filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_link-",if(netType == 'space'){format(netPar,nsmall=2)}else{netPar},"_bound-",pbound,
-									if(env!='none'){paste("_env-",env,sep="")}else{""},"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_eps-",
-									epsilon,".txt",sep="")
-							#print(filename)
+#							filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_link-",if(netType == 'space'){format(netPar,nsmall=2)}else{netPar},"_bound-",pbound,
+#									if(env!='none'){paste("_env-",env,sep="")}else{""},"_model-",method,"_up-",update,"_acc-",accuracy,"_acstdv-",acstdv,"_eps-",
+#									epsilon,".txt",sep="")
+							filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_link-",if(netType == 'space'){format(netPar,nsmall=2)}else{netPar},
+									"_model-",method,"_up-",update,"_driftbase-",accuracy,"_driftrange-",format(acstdv,nsmall=2),".txt",sep="")
+							print(filename)
 							data <- read.table(filename, header=T)
 							xparv <- nodes
 							effectivity <- nrow(data[ data$iter <= T_MAX & (data$pos >= (nodes*quorum) | data$neg >= (nodes*quorum) ) , ]) / nrow(data)
@@ -531,7 +536,7 @@ plotOnNodes <- function(prefix, nodes_list=seq(11,47,12), link_list=seq(0.2, 0.8
 		if  (netType == 'barabasi-albert'){
 			txtL <- paste("Edges: ", edge_list, sep="")
 		}
-		if  (netType == 'space'){
+		if  (netType == 'space' || netType == 'rgg-fixed-degree'){
 			txtL <- paste("Range: ", range_list, sep="")
 		}
 		legend(legpos2, txtL, pch=pntTypes[1:(combolength/length(updates))], col=colours[1:(combolength/length(updates))], lty=-1, cex=1, lwd=2, bg='white' )
