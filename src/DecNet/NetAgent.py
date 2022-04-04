@@ -31,6 +31,7 @@ class NetAgent:
             self.dt =           args[3]
             self.interrogationT=args[4]
             self.prior =        args[5]
+            self.misinformed =  args[6]
             self.DDMintegration = []
         self.DEBUG = debug
     
@@ -48,7 +49,6 @@ class NetAgent:
         
         numerator =   pdf( abs(decisionVariable),  abs(self.drift), self.noiseStdDev, self.interrogationT )
         denominator = pdf( abs(decisionVariable), -abs(self.drift), self.noiseStdDev, self.interrogationT )
-        #print("num is " +  str(numerator) + " den is " + str(denominator) + " (1-num) = " + str(1-numerator))
         return math.log( numerator/denominator )
     
     ## Function computing the combined Log odds (assuming all agents' drifts are known) 
@@ -69,10 +69,6 @@ class NetAgent:
             acc = 1 - acc
         if (sign < 0): # in case of drift with negative signs, it's sufficient to take the mirror accuracy 
             acc = 1 - acc
-#         if (sign > 0 and acc < 0.5):
-#             acc = 1 - acc
-#         if (sign < 0 and acc > 0.5):
-#             acc = 1 - acc
         drift = math.sqrt(2) * noise * scipy.special.erfcinv(2 - 2*acc)/math.sqrt(time)
         pdf = np.exp( (-(decVar - drift * time)**2) / (2 * time * noise * noise) ) / math.sqrt(2 * math.pi * time * noise * noise)
         return pdf*prob
@@ -86,9 +82,14 @@ class NetAgent:
         #print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) )
         return math.log( numerator[0]/denominator[0] )
     
-    def integrationFuncDriftNormal(self, drift, decVar, noise, time, sign):
-        prob = norm.pdf(drift, self.populationMean, self.populationStdDev)
-        pdf = np.exp( (-(decVar - (sign*abs(drift)) * time)**2) / (2 * time * noise * noise) ) / math.sqrt(2 * math.pi * time * noise * noise)
+    def integrationFuncDriftNormal(self, drift, decVar, noise, time, sign, misinformed):
+        if misinformed:
+            prob = norm.pdf(drift, sign*self.populationMean, self.populationStdDev)
+            signedDrift = drift
+        else:
+            prob = norm.pdf(drift, self.populationMean, self.populationStdDev)
+            signedDrift = sign*abs(drift)
+        pdf = np.exp( (-(decVar - signedDrift * time)**2) / (2 * time * noise * noise) ) / math.sqrt(2 * math.pi * time * noise * noise)
         return pdf*prob
     
     def integrationFuncDriftUniform(self, drift, decVar, noise, time, sign):
@@ -96,21 +97,11 @@ class NetAgent:
         return pdf
 
     ## Function computing the combined Log odds from distribution (assuming only drift distribution is known) 
-    def estimateConfFromDistribution(self, decisionVariable, time):
-#         numerator   = integrate.quad( self.integrationFuncAcc, 0, 1, args=( abs(decisionVariable), self.noiseStdDev, time, +1 ) )
-#         denominator = integrate.quad( self.integrationFuncAcc, 0, 1, args=( abs(decisionVariable), self.noiseStdDev, time, -1 ) )
-#         print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) )
-#         print("ratio: " + str(numerator[0]/denominator[0]) + " and log: " + str(math.log( numerator[0]/denominator[0] )))
-#         numerator   = integrate.quad( self.integrationFuncDriftUniform, self.populationMean-(self.populationStdDev*np.sqrt(12)/2), self.populationMean+(self.populationStdDev*np.sqrt(12)/2), args=( abs(decisionVariable), self.noiseStdDev, time, +1 ) )
-#         denominator   = integrate.quad( self.integrationFuncDriftUniform, self.populationMean-(self.populationStdDev*np.sqrt(12)/2), self.populationMean+(self.populationStdDev*np.sqrt(12)/2), args=( abs(decisionVariable), self.noiseStdDev, time, -1 ) )
-#         print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) + " range is [" + str(self.populationMean-(self.populationStdDev*np.sqrt(12)/2)) + "," + str(self.populationMean+(self.populationStdDev*np.sqrt(12)/2)) + "]" )
-#         print("ratio: " + str(numerator[0]/denominator[0]) + " and log: " + str(math.log( numerator[0]/denominator[0] )))
-        numerator   = integrate.quad( self.integrationFuncDriftNormal, -np.inf, np.inf, args=( abs(decisionVariable), self.noiseStdDev, time, +1 ) )
-        denominator   = integrate.quad( self.integrationFuncDriftNormal, -np.inf, np.inf, args=( abs(decisionVariable), self.noiseStdDev, time, -1 ) )
-#         print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) + " range is [" + str(self.populationMean-(self.populationStdDev*np.sqrt(12)/2)) + "," + str(self.populationMean+(self.populationStdDev*np.sqrt(12)/2)) + "]" )
-        #print(" num:" + str(numerator[0]) + " den:" + str(denominator[0]) + "ratio: " + str(numerator[0]/denominator[0]) + " and log: " + str(math.log( numerator[0]/denominator[0] )))
-        priorComponent = 0 if (self.prior == 0.5) else math.log( self.prior/ (1-self.prior))  # if the sing of decisionVariable is negative, through math.copysign I change the sing of the priorComponent (which is equivalent to power to -1 the log argument)
-        return math.log( numerator[0]/denominator[0] ) + math.copysign(priorComponent, decisionVariable)
+    def estimateConfFromDistribution(self, signedThreshold, time):
+        numerator   = integrate.quad( self.integrationFuncDriftNormal, -np.inf, np.inf, args=( abs(signedThreshold), self.noiseStdDev, time, +1, self.misinformed ) )
+        denominator   = integrate.quad( self.integrationFuncDriftNormal, -np.inf, np.inf, args=( abs(signedThreshold), self.noiseStdDev, time, -1, self.misinformed ) )
+        priorComponent = 0 if (self.prior == 0.5) else math.log( self.prior/ (1-self.prior))  # if the sing of signedThreshold is negative, through math.copysign I change the sing of the priorComponent (which is equivalent to power to -1 the log argument)
+        return math.log( numerator[0]/denominator[0] ) + math.copysign(priorComponent, signedThreshold)
     
     def logOddsApprox(self, decisionVariable):
         fittedline = np.poly1d([0.1663, 0.5309, 0.1238])
@@ -180,9 +171,6 @@ class NetAgent:
                 self.confidence = 1
                 
             if (self.DEBUG): print ("for y=" + str(self.y) + " (and drift:" + str(self.drift) + ") the log-odds conf is " + str(self.confidence))
-#             tmp_acc = self.computeAccuracyFromDrift()
-#             tmp_conf = math.log( tmp_acc/(1-tmp_acc) )
-#             if (self.DEBUG): print ("and from accuracy the confidence would be " + str(tmp_conf))
     
     
     def updateConfidenceOptimQuick(self, all_agents, neighbours, myPreviousOpinion):
@@ -217,22 +205,12 @@ class NetAgent:
             
         ## Computing how likely is the opposite aggregate opinion is correct
         self.accuracy = comboProbabilityPlus/(comboProbabilityPlus + comboProbabilityNeg)
-        #print("A1: " + str(self.accuracy) )
-        #print("A2: " + str(math.log(comboProbabilityPlus/comboProbabilityNeg)) + " with plus:" + str(comboProbabilityPlus) + " and neg:" + str(comboProbabilityNeg) )
         self.accuracy = max( epsilon, min( 1-epsilon, self.accuracy ))
         if (self.DEBUG): print("Updated accuracy is " + str(self.accuracy))
         if (self.accuracy == 1.0):
             self.confidence = 100
         else:
             self.confidence = math.log( self.accuracy/(1-self.accuracy) )
-        #print("C1: " + str(self.confidence) )
-        #conf2 = math.log( comboProbabilityPlus/comboProbabilityNeg )
-        #acc2 = np.exp(conf2) / ( 1 + np.exp(conf2) )
-        #print("acc: " + str(self.accuracy) + " : " + str(acc2) )
-        #print("conf:" + str(self.confidence) + " : " + str(conf2) )
-#         self.confidence = math.log( comboProbabilityPlus/comboProbabilityNeg )
-#         self.accuracy = np.exp(self.confidence) / ( 1 + np.exp(self.confidence) )
-#         self.accuracy = max( epsilon, min( 1-epsilon, self.accuracy ))
         
         
     def updateConfidenceOptimFull(self, all_agents, neighbours):
@@ -244,7 +222,6 @@ class NetAgent:
             confidences.append( all_agents[neigh].confidence )
         accuracies.append( self.accuracy )
         confidences.append( self.confidence )
-        #print("accuracies are: " + str(accuracies) )
         
         updatedAcc = 0
         allCombinations = list( itertools.product( [-1,1], repeat=len(accuracies)) )  # all vote combinations
@@ -253,7 +230,6 @@ class NetAgent:
             weightedVote = 0
             for n in range(0, len(combo)): # combining votes with given confidences 
                 weightedVote += combo[n] * confidences[n]
-            #print("For combo " + str(combo) + " the weightedVote is " + str(weightedVote) )
             if weightedVote > 0: # check if the combined votes are Positive (we increment accuracies assuming positive vote, it would give the same results by using negative)
                 comboProbability = 1
                 for n in range(0, len(combo)):
@@ -262,7 +238,6 @@ class NetAgent:
                     else:
                         comboProbability *= (1 - accuracies[n])
                 updatedAcc += comboProbability
-                #print("And comboProb is " + str(comboProbability) + " and upAcc: " + str(updatedAcc))
         
         self.accuracy = updatedAcc
         if (self.DEBUG): print("Updated accuracy is " + str(updatedAcc))

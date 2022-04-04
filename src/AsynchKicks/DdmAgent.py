@@ -13,6 +13,7 @@ import scipy.integrate as integrate
 import scipy.special
 from scipy.stats import norm
 import itertools
+import warnings
     
 class DdmAgent:
     
@@ -33,6 +34,7 @@ class DdmAgent:
             self.dt =           args[3]
             self.threshold =    args[4]
             self.prior =        args[5]
+            self.misinformed =  args[6]
             self.DDMintegration = []
             self.DDMintegration_time = []
         self.DEBUG = debug
@@ -88,28 +90,55 @@ class DdmAgent:
         prob = norm.pdf(drift, self.popMean, self.popStdDev)
         pdf = np.exp( (-(decVar - (sign*abs(drift)) * time)**2) / (2 * time * noise * noise) ) / math.sqrt(2 * math.pi * time * noise * noise)
         return pdf*prob
+      
+    def infiniteSeriesBorodinSalminen(self, t, u, v, K):
+        summedValue = 0
+        for k in K:
+            summedValue += (v -u +2*k*v) * np.exp( -(v -u +2*k*v)**2 / (2*t) ) / np.sqrt(2*np.pi*(t**3))
+        return summedValue
+      
+    def integrationFuncDriftNormalFreeResp(self, drift, thresh, noise, time, sign, misinformed, normalisationOfNormProbForResampling):
+        if misinformed:
+            pdf_normal_dist = norm.pdf(drift, sign*self.popMean, self.popStdDev)
+            signedDrift = drift
+        else:
+            pdf_normal_dist = norm.pdf(drift, self.popMean, self.popStdDev) / normalisationOfNormProbForResampling
+            signedDrift = sign*abs(drift)
+        
+        expected_accuracy = 1- (1 / (1 + np.exp( 2*signedDrift*thresh / noise**2 ) ))
+         
+        ## to compute the pdf_first_passage_time for DDM with two thresholds we use Eq. (14) from https://arxiv.org/pdf/1508.03373.pdf
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error')
+            try:
+                denominator_pdf_first_passage_time = 1 - (1 - np.exp(-2*signedDrift*thresh/(noise**2)) ) / ( np.exp(2*signedDrift*thresh/(noise**2)) - np.exp(-2*signedDrift*thresh/(noise**2)) )
+                #if sign==-1: print("The denominator is " + str(denominator_pdf_first_passage_time))
+                if math.isnan(denominator_pdf_first_passage_time ): print(signedDrift)
+                pdf_first_passage_time = np.exp( -(signedDrift**2)*time/(2*noise**2) + signedDrift*thresh/(noise**2) ) * self.infiniteSeriesBorodinSalminen(time, thresh/noise, 2*thresh/noise, np.arange(-10,11)) / denominator_pdf_first_passage_time
+            except RuntimeWarning:
+                pdf_first_passage_time = 0
+        #print("The FPT is " + str(pdf_first_passage_time))
+        
+        ## equation for a single threshold drift
+        #signedDrift = signedDrift/noise
+        #thresh = thresh/noise
+        #pdf_first_passage_time = (thresh / np.sqrt( 2 * np.pi * time**3) ) * np.exp( (-(thresh - signedDrift * time)**2) / (2 * time))
+                  
+        return pdf_normal_dist* expected_accuracy * pdf_first_passage_time
     
     def integrationFuncDriftUniform(self, drift, decVar, noise, time, sign):
         pdf = np.exp( (-(decVar - (sign*abs(drift)) * time)**2) / (2 * time * noise * noise) ) / math.sqrt(2 * math.pi * time * noise * noise)
         return pdf
 
     ## Function computing the combined Log odds from distribution (assuming only drift distribution is known) 
-    def estimateConfFromDistribution(self, decisionVariable, time):
-#         numerator   = integrate.quad( self.integrationFuncAcc, 0, 1, args=( abs(decisionVariable), self.noiseStdDev, time, +1 ) )
-#         denominator = integrate.quad( self.integrationFuncAcc, 0, 1, args=( abs(decisionVariable), self.noiseStdDev, time, -1 ) )
-#         print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) )
-#         print("ratio: " + str(numerator[0]/denominator[0]) + " and log: " + str(math.log( numerator[0]/denominator[0] )))
-#         numerator   = integrate.quad( self.integrationFuncDriftUniform, self.popMean-(self.popStdDev*np.sqrt(12)/2), self.popMean+(self.popStdDev*np.sqrt(12)/2), args=( abs(decisionVariable), self.noiseStdDev, time, +1 ) )
-#         denominator   = integrate.quad( self.integrationFuncDriftUniform, self.popMean-(self.popStdDev*np.sqrt(12)/2), self.popMean+(self.popStdDev*np.sqrt(12)/2), args=( abs(decisionVariable), self.noiseStdDev, time, -1 ) )
-#         print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) + " range is [" + str(self.popMean-(self.popStdDev*np.sqrt(12)/2)) + "," + str(self.popMean+(self.popStdDev*np.sqrt(12)/2)) + "]" )
-#         print("ratio: " + str(numerator[0]/denominator[0]) + " and log: " + str(math.log( numerator[0]/denominator[0] )))
-        numerator   = integrate.quad( self.integrationFuncDriftNormal, -np.inf, np.inf, args=( abs(decisionVariable), self.noiseStdDev, time, +1 ) )
-        denominator   = integrate.quad( self.integrationFuncDriftNormal, -np.inf, np.inf, args=( abs(decisionVariable), self.noiseStdDev, time, -1 ) )
-#         print ("y:" + str(decisionVariable) + " num:" + str(numerator[0]) + " den:" + str(denominator[0]) + " range is [" + str(self.popMean-(self.popStdDev*np.sqrt(12)/2)) + "," + str(self.popMean+(self.popStdDev*np.sqrt(12)/2)) + "]" )
-        #print(" num:" + str(numerator[0]) + " den:" + str(denominator[0]) + "ratio: " + str(numerator[0]/denominator[0]) + " and log: " + str(math.log( numerator[0]/denominator[0] )))
+    def estimateConfFromDistribution(self, signedThreshold, time):
+        integrationLowerLimit = -np.inf if self.misinformed else 0
+        normalisationOfNormProbForResampling = 1 if self.misinformed else integrate.quad( norm.pdf, 0, np.inf, args=(self.popMean, self.popStdDev))[0]
+        numerator   = integrate.quad( self.integrationFuncDriftNormalFreeResp, integrationLowerLimit, np.inf, args=( abs(signedThreshold), self.noiseStdDev, time, +1, self.misinformed, normalisationOfNormProbForResampling ) )
+        denominator = integrate.quad( self.integrationFuncDriftNormalFreeResp, integrationLowerLimit, np.inf, args=( abs(signedThreshold), self.noiseStdDev, time, -1, self.misinformed, normalisationOfNormProbForResampling ) )
         
-        priorComponent = 0 if (self.prior == 0.5) else math.log( self.prior/ (1-self.prior))  # if the sing of decisionVariable is negative, through math.copysign I change the sing of the priorComponent (which is equivalent to power to -1 the log argument)
-        return math.log( numerator[0]/denominator[0] ) + math.copysign(priorComponent, decisionVariable)
+        priorComponent = 0 if (self.prior == 0.5) else math.log( self.prior/ (1-self.prior))  # if the sing of signedThreshold is negative, through math.copysign I change the sing of the priorComponent (which is equivalent to power to -1 the log argument)
+        return math.log( numerator[0]/denominator[0] ) + math.copysign(priorComponent, signedThreshold)
     
     def logOddsApprox(self, decisionVariable):
         fittedline = np.poly1d([0.1663, 0.5309, 0.1238])
@@ -143,12 +172,7 @@ class DdmAgent:
         self.y += rand.normal(0, self.noiseStdDev) * math.sqrt(self.dt) # stochastic step
         self.DDMintegration.append(self.y)
         self.DDMintegration_time.append(_time)
-        #print("y val: " + str(self.y))
         self.updateOpinion()
-        #if self.opinion != 0: print("My perfect conf (a:" + str(self.myid) + ") at time " + str(_time) + " would be " + str(self.logOddsPerfect(self.y, _time)))
-#         if self.opinion != 0: 
-#             acc = self.computeAccuracyFromDrift(_time)
-#             print("just for test: " + str( math.log( acc/(1-acc)) ) )
         return self.opinion
 
     def kick(self, kickerOpinion, time) :
@@ -200,22 +224,12 @@ class DdmAgent:
             
         ## Computing how likely is the opposite aggregate opinion is correct
         self.accuracy = comboProbabilityPlus/(comboProbabilityPlus + comboProbabilityNeg)
-        #print("A1: " + str(self.accuracy) )
-        #print("A2: " + str(math.log(comboProbabilityPlus/comboProbabilityNeg)) + " with plus:" + str(comboProbabilityPlus) + " and neg:" + str(comboProbabilityNeg) )
         self.accuracy = max( epsilon, min( 1-epsilon, self.accuracy ))
         if (self.DEBUG): print("Updated accuracy is " + str(self.accuracy))
         if (self.accuracy == 1.0):
             self.confidence = 100
         else:
             self.confidence = math.log( self.accuracy/(1-self.accuracy) )
-        #print("C1: " + str(self.confidence) )
-        #conf2 = math.log( comboProbabilityPlus/comboProbabilityNeg )
-        #acc2 = np.exp(conf2) / ( 1 + np.exp(conf2) )
-        #print("acc: " + str(self.accuracy) + " : " + str(acc2) )
-        #print("conf:" + str(self.confidence) + " : " + str(conf2) )
-#         self.confidence = math.log( comboProbabilityPlus/comboProbabilityNeg )
-#         self.accuracy = np.exp(self.confidence) / ( 1 + np.exp(self.confidence) )
-#         self.accuracy = max( epsilon, min( 1-epsilon, self.accuracy ))
         
         
     def updateConfidenceOptimFull(self, all_agents, neighbours):

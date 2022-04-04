@@ -1,22 +1,20 @@
 #!/bin/bash
-#Request 12 gigabytes of virtual (mem) and real (rmem) memory
-#$ -l mem=12G -l rmem=4G
-#$ -l h_rt=168:00:00
-#$ -N decnet
-#$ -e clust_logs/
-#$ -o clust_logs/
 
-if [ $# -le 2 ]; then
-	#Load the Anaconda Python 3 Environment module for ICEBERG
-	echo "Loading modules for iceberg"
-	module load apps/python/anaconda3-2.5.0
-else
-	#Load the Anaconda Python 3 Environment module for SHARC
-	echo "Loading modules for sharc"
-	#module load apps/python/anaconda3-4.2.0
-	source activate python35	 	 
-fi
+## Resource Request
+#SBATCH --job-name=DDMnets           # name of your job, will be shown when running squeue
+#SBATCH --output=log-out/DDMnets_%j.stdout   # name of the output file, %j will be replaced by the Job ID
+#SBATCH --error=log-err/DDMnets_%j.stderr    # name of the error file, %j will be replaced by the Job ID
+#SBATCH --partition=Epyc7452           # the hardware that you want to run on
+#SBATCH --qos=short                    # the queue that you want to run on (short, long)
+#SBATCH --ntasks=1                     # the job will launch a single task, set higher for MPI programs
+#SBATCH --cpus-per-task=1              # each task will require 1 core on the same machine, set higher for OpenMP programs
+#SBATCH --mail-user=andreagiovanni.reina@ulb.be   # your email to receive emails about the state of your job
+#SBATCH --mail-type=END,FAIL           # when to send emails, choices are BEGIN, END, FAIL, ARRAY_TASKS
 
+source /home/areina/pythonVirtualEnvs/DDMonNetsEnv/bin/activate
+export PYTHONPATH=/home/areina/DecisionsOnNetworks/src/
+cd $PYTHONPATH
 
-#Run the program
-python $1 $2
+srun python3 ${1} ${2}
+
+deactivate

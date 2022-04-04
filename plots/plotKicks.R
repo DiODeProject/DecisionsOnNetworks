@@ -3,6 +3,7 @@
 library(data.table)
 library(MASS)
 library(RColorBrewer)
+library(ggplot2)
 
 setyrange <- function(yaxis){
 	if(yaxis == "degree" ){
@@ -10,7 +11,7 @@ setyrange <- function(yaxis){
 	}else{ if(yaxis == "degree-stddev" ){
 			rng <- c(0,5)
 		}else{ if(yaxis == "time" ){
-				rng <- c(0,20)
+				rng <- c(0,100)
 			}else{ if(yaxis == "confidence" ){
 					rng <- c(0,23)
 			}else{ if(yaxis == "confidence-stddev" ){
@@ -22,49 +23,70 @@ setyrange <- function(yaxis){
 						}else{if(yaxis == "majgroup"){
 								rng <- c(0.5,1)
 							}else{if(yaxis == "bayesrisk"){
-									rng <- c(0,10)
+									rng <- c(0,50)
 								}else{if(yaxis == "cascade"){
 										rng <- c(0,1)
-									}else{
+									}else{if(yaxis == "meanBR"){
+											rng <- c(0.5,50)
+										}else{if(yaxis == "influence"){
+												rng <- c(-1,1)
+											}else{
 					rng <- c(0,1)
-				}}}}}}}}}}
+				}}}}}}}}}}}}
 	return(rng)
 }
 
 plotAll <-function(resdir){
-	pltdir <- "/Users/joefresna/DecisionsOnNetworks/results/kick_5-plt/"
+	#synch=FALSE
+	synch=TRUE
+	if (synch){
+		pltdir <- "/Users/joefresna/DecisionsOnNetworks/results/synch_6-plt/"
+	} else {
+		pltdir <- "/Users/joefresna/DecisionsOnNetworks/results/kick_rgg_resample-plt-classic/"
+	}
 	system(paste("mkdir -p ", pltdir))
 	
 	#yaxes <- c("effectivity", "degree", "degree-scaled", "degree-stddev", "success", "clustering", "clustering-stddev", "time")
-	#yaxes <- c("effectivity", "success", "time", "majgroup", "majpos", "pos", "bayesrisk", "cascade")
-	yaxes <- c("cascade")
+	#yaxes <- c("effectivity", "success", "time", "majgroup", "majpos", "pos", "bayesrisk", "cascade")	
+	yaxes <- c("effectivity", "success", "time", "majpos", "pos", "bayesrisk")	
+	#yaxes <- c("pos", "meanBR")
+	yaxes <- c("influence")
 	darkcols <- brewer.pal(8, "Dark2")
 	for (yaxis in yaxes){
 		rng <- setyrange(yaxis)
 		#for (speed in speeds){
-		for (netType in c("space","barabasi-albert","erdos-renyi")){
-		for (nodes in seq(20, 100, 10)){
-			#nodes_list <- seq(20, 100, 10)
-			pdf(paste(pltdir,yaxis,"_",netType,"_n-",nodes,"-on-sd.pdf",sep=""))
-			if (yaxis == 'time') rng <- c(0,2)
-			res <- plotOnStdDev(prefix=resdir, nodes_list=nodes, link_list=0.2, edge_list=3, range_list=c(0.2), #xlabel="Nodes", 
-					updatemodels=c("no-up", "conf-kick", "thresh-kick"),
-#					updatemodels=c("conf-kick", "thresh-kick"),
+		#for (netType in c("rgg-fixed-degree","barabasi-albert","erdos-renyi")){
+		for (netType in c("rgg-fixed-degree")){
+		#nodes_list <- c(50,100)
+		nodes_list <- c(25,50,100)
+		for (nodes in nodes_list){
+		for (misinformed in c('false')){ #,'true')){
+			#pdf(paste(pltdir,yaxis,"_",netType,"_n-",nodes,"mis-",substring(misinformed, 1, 1),"-on-sd.pdf",sep=""))
+			rgg_range <- 10;
+			pdf(paste(pltdir,yaxis,"_rgg-",rgg_range,"_n-",nodes,"-mis-",substring(misinformed, 1, 1),"-on-sd.pdf",sep=""))
+			par(mar = c(4.1,4.1,0,0)) # removes the padding bottom, left, top, and right.
+			#if (yaxis == 'time') rng <- c(0,5)
+			res <- plotOnStdDev(prefix=resdir, nodes_list=nodes, link_list=0.2, edge_list=3, range_list=c(rgg_range), #xlabel="Nodes", 
+#					updatemodels=c("no-up", "conf-kick"),# "thresh-kick"),
+					updatemodels=if(synch){c("no-up","optim-up","belief-up")}else{c("no-up", "conf-kick")},
+#					updatemodels=c("no-up", "optim-up"),
 #					driftranges=c(0.5, 1, 1.5), driftbases=c(0.05, 0.1, 0.2),
 #					driftranges=c(0.5, 1, 1.5), driftbases=c(0.05),
 					#driftStdDev_list=c(0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.5, 1),
-					driftStdDev_list=c(0.10, 0.20, 0.30, 0.40, 0.5),
+					#driftStdDev_list=c(0.01, 0.05, 0.10, 0.20, 0.30, 0.40, 0.5),
+					driftStdDev_list=if(synch){c(0.05, 0.1, 0.15, 0.2, 0.25)}else{seq(0.05, 0.5, 0.05)}, 
 					#driftranges=c(0.10), driftbases=c(0.05, 0.1, 0.2), 
-					driftbases=c(0.05, 0.1, 0.2),
+					driftbases=if(synch){c(0.5, 0.6)}else{c(0.05, 0.1, 0.2, 0.25)},
 					#netType="space", 
 					#netType="barabasi-albert", 
 					#netType="erdos-renyi",
 					netType=netType,
-					pbound='false', T_MAX=1000, xpar='range', boxptime=FALSE,
-					colours=darkcols, yaxis=yaxis, yrange=rng, legNodes=TRUE, quorum=0.8)
+					pbound='false', T_MAX=1000, xpar='range', boxptime=FALSE, synch=synch,
+					colours=darkcols, yaxis=yaxis, yrange=rng, legNodes=TRUE, quorum=1.0,
+					misinformed=misinformed)
 			if (yaxis == yaxes[1]){ write.table(res, file = paste(resdir,"/finalTable_SP.txt",sep=""), sep="\t", col.names=TRUE, row.names=FALSE) }
 			dev.off()
-		}}
+		}}}
 	}
 	return(0)
 	
@@ -117,6 +139,104 @@ plotAll <-function(resdir){
 #			dev.off()
 #		}
 #	}
+}
+
+generateAllCascadeOnRank <- function(resdir){
+	for (yaxis in yaxes){
+		rng <- setyrange(yaxis)
+		#for (speed in speeds){
+		for (netType in c("rgg-fixed-degree","barabasi-albert","erdos-renyi")){
+			for (nodes in seq(20, 100, 10)){
+				#nodes_list <- seq(20, 100, 10)
+				pdf(paste(pltdir,yaxis,"_",netType,"_n-",nodes,"-on-sd.pdf",sep=""))
+				if (yaxis == 'time') rng <- c(0,5)
+				res <- plotCascadeOnRank(prefix=resdir, nodes_list=nodes, link_list=0.2, edge_list=3, range_list=c(10), #xlabel="Nodes", 
+						updatemodels=c("no-up", "conf-kick"),# "thresh-kick"),
+#					updatemodels=c("no-up", "optim-up"),
+#					driftranges=c(0.5, 1, 1.5), driftbases=c(0.05, 0.1, 0.2),
+#					driftranges=c(0.5, 1, 1.5), driftbases=c(0.05),
+						#driftStdDev_list=c(0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.5, 1),
+						#driftStdDev_list=c(0.01, 0.05, 0.10, 0.20, 0.30, 0.40, 0.5),
+						driftStdDev_list=seq(0.05, 0.50, 0.05),
+						#driftranges=c(0.10), driftbases=c(0.05, 0.1, 0.2), 
+						driftbases=c(0.05, 0.1, 0.2),
+						#netType="space", 
+						#netType="barabasi-albert", 
+						#netType="erdos-renyi",
+						netType=netType,
+						pbound='false', T_MAX=1000, xpar='range', boxptime=FALSE, synch=synch,
+						colours=darkcols, yaxis=yaxis, yrange=rng, legNodes=TRUE, quorum=0.8)
+				if (yaxis == yaxes[1]){ write.table(res, file = paste(resdir,"/finalTable_SP.txt",sep=""), sep="\t", col.names=TRUE, row.names=FALSE) }
+				dev.off()
+			}}
+	}
+}
+
+plotCascadeOnRank <- function(prefix,resdir,driftStdDev_list=c(0.01, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50), nodes_list=seq(20,100,20), link_list=c(0.2), edge_list=c(3), range_list=c(10), 
+		netTypeList=c("erdos-renyi",'barabasi-albert','rgg-fixed-degree'), driftbases=c(0.05,0.1,0.2), updatemodels=c("conf-kick"),misinfo_list=c('true','false')){
+	system(paste("mkdir -p ", resdir))
+	pntTypes = c(1,4,5,3,8,7,0,2,6,9,10,11,12,13)
+	for (netType in netTypeList){
+		for (misinfo in misinfo_list){
+			for (edge in edge_list){
+				for (link in link_list){
+					for (range in range_list){
+						for (update in updatemodels){
+							for (driftbase in driftbases){
+								for (nodes in nodes_list){
+									data2d <- c()
+									for (driftStdDev in driftStdDev_list){
+										if  (netType == 'erdos-renyi'){
+											netPar <- link
+										}
+										if  (netType == 'barabasi-albert'){
+											netPar <- edge
+										}
+										if  (netType == 'space' || netType == 'rgg-fixed-degree'){
+											netPar <- range
+										}
+										params <- paste("out_net-", netType, "_nodes-",nodes,"_link-",if(netType == 'space'){format(netPar,nsmall=2)}else{netPar},
+												"_up-",update,"_driftbase-",driftbase,"_driftrange-",format(driftStdDev,nsmall=2),"_miss-",misinfo,"_cas.txt",sep="")
+										filename <- paste(prefix, params,sep="")
+										print(filename)
+										data <- read.table(filename, header=T)
+										pdf(paste(resdir,substr(params,1,nchar(params)-4),".pdf",sep=""))
+										plot(c(0, nodes), c(0,1), type='n', xlab="Rank", ylab="Carscade proportion")
+										grid()
+										points( data$rank, data$casc/nodes )
+										#hist(data[data$casc/nodes>0.5, 'rank'])
+										dev.off()
+										data2d <- rbind(data2d, cbind(data,stdv=rep(driftStdDev,nrow(data))))
+									}
+									#return(data2d)
+									driftStep <- (max(driftStdDev_list)-min(driftStdDev_list))/(length(driftStdDev_list)-1)
+									#myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
+									maxLegend <- if(misinfo){130}else{170}
+									minLegend <- if(misinfo){20}else{0}
+									ggplot(data2d[data2d$casc >= 0.1*nodes,], aes(x=rank, y=stdv) ) + geom_bin2d( breaks=list( x=seq(0,nodes,nodes/length(driftStdDev_list)), y=seq(min(driftStdDev_list)-driftStep/2.0, max(driftStdDev_list)+driftStep/2.0, driftStep)) ) +
+											stat_bin2d(geom = "text", aes(label = ..count..), breaks=list( x=seq(0,nodes,nodes/length(driftStdDev_list)), y=seq(min(driftStdDev_list)-driftStep/2.0, max(driftStdDev_list)+driftStep/2.0, driftStep)) ) + # this is to plot the number inside the squares 
+											scale_fill_continuous("Cascades", type = "viridis", limits=c(minLegend, maxLegend)) + 
+											scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) + # this is to remove the padding
+											labs( x="Individual rank", y=expression("Heterogeneity "*sigma['A']) ) +
+											theme( axis.text = element_text(size=12), axis.title = element_text(size=16), legend.text=element_text(size=10), , legend.title=element_text(size=12), plot.margin=grid::unit(c(0,0,0,0), "mm") ) +
+											coord_fixed(ratio=nodes/(max(driftStdDev_list)-min(driftStdDev_list))) # aspect ratio = 1
+											#scale_colour_gradientn(colours = myPalette(100), limits=c(0, 300))  # this is to fix the scale
+											#theme_bw()
+									#ggplot(data2d, aes(x=rank, y=stdv) ) + stat_density_2d(geom = "point", aes(size = stat(density)), n = 20, contour = FALSE)
+									#ggplot(data2d, aes(x=rank, y=stdv) ) + stat_density_2d(aes(fill = ..level..), geom = "polygon")
+									filename <- paste(resdir,"2d_",substr(params,1,nchar(params)-4),".pdf",sep="")
+									ggsave(filename, device = "pdf")
+									# after saving image, run pdfcrop 
+									system2(command = "pdfcrop", args = c(filename, filename) )
+									#return(data2d)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 plotFiniteTime <-function(resdir){
@@ -534,7 +654,7 @@ plotOnNodes <- function(prefix, nodes_list=seq(11,47,12), link_list=seq(0.2, 0.8
 
 plotOnStdDev <- function(prefix, driftStdDev_list=c(0.25,0.5,1), nodes_list=40, link_list=seq(0.2, 0.8, 0.2), edge_list=seq(5, 20, 5), range_list=c(1), xlabel="Std dev on DDM drifts",
 		netType="erdos-renyi", pbound='true', T_MAX=50, xpar='range', boxptime=FALSE, driftbases=c(0.1), updatemodels=c("conf-kick"),
-		colours=rainbow(10), yrange=c(0,1), legNodes=FALSE, yaxis="effectivity", env='none', quorum=1, costError=20, costTime=1) {
+		colours=rainbow(10), yrange=c(0,1), legNodes=FALSE, yaxis="effectivity", env='none', quorum=1, costError=20, costTime=1, synch='false',misinformed='false') {
 	
 	pntTypes = c(1,4,5,3,8,7,0,2,6,9,10,11,12,13)
 	
@@ -545,7 +665,11 @@ plotOnStdDev <- function(prefix, driftStdDev_list=c(0.25,0.5,1), nodes_list=40, 
 	xrange <- (xmax - xmin)
 	if (yaxis == 'time' ){ offset <- 0.008*combolength} else {offset <- 0}
 	ylabname <- simpleCap( gsub("effectivity", paste("Convergence (quorum=",quorum,")",sep=""), gsub("success", paste("Group accuracy (quorum=",quorum,")",sep=""), gsub("time", "Timesteps", gsub("majgroup", "Largest proportion", yaxis)))) )
-	plot(c(xmin-(xrange*offset), xmax+(xrange*offset)), yrange, type='n', xlab=xlabel, ylab=ylabname, xaxt = "n")
+	if (yaxis == 'meanBR'){
+		plot(c(xmin-(xrange*offset), xmax+(xrange*offset)), yrange, type='n', xlab="Heterogeneity", ylab="Mean cost", xaxt = "n", log="y")
+	}else{
+		plot(c(xmin-(xrange*offset), xmax+(xrange*offset)), yrange, type='n', xlab=xlabel, ylab=ylabname, xaxt = "n")
+	}
 	axis(1, at=driftStdDev_list)
 	grid()
 	legTxt <- c()
@@ -568,11 +692,20 @@ plotOnStdDev <- function(prefix, driftStdDev_list=c(0.25,0.5,1), nodes_list=40, 
 								if  (netType == 'barabasi-albert'){
 									netPar <- edge
 								}
-								if  (netType == 'space'){
+								if  (netType == 'space' || netType == 'rgg-fixed-degree'){
 									netPar <- range
 								}
-								filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_link-",if(netType == 'space'){format(netPar,nsmall=2)}else{netPar},"_up-",update,
-										"_driftbase-",driftbase,"_driftrange-",format(driftStdDev,nsmall=2),".txt",sep="")
+								if(synch){
+									filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_link-",if(netType == 'space'){format(netPar,nsmall=2)}else{netPar},
+										#if(synch){"_model-log-odds-distr_up-"}else{"_up-"},update,
+										"_model-conf-perfect_up-",update,
+										"_accmean-",driftbase,
+										"_accrange-",driftStdDev,".txt",sep="")
+								}else{
+									filename <- paste(prefix,"out_net-", netType, "_nodes-",nodes,"_link-",if(netType == 'space'){format(netPar,nsmall=2)}else{netPar},
+											"_up-",update,"_driftbase-",driftbase, "_driftrange-",format(driftStdDev,nsmall=2),
+											"_miss-",misinformed,".txt",sep="")
+								}
 								print(filename)
 								data <- read.table(filename, header=T)
 								xparv <- driftStdDev
@@ -583,9 +716,13 @@ plotOnStdDev <- function(prefix, driftStdDev_list=c(0.25,0.5,1), nodes_list=40, 
 								success <- nrow(data[ data$pos >= (nodes*quorum), ]) / nrow(data)
 								times <- data[ data$pos == nodes | data$neg == nodes, 'iter']
 								bayesrisk <- (1-success)*costError + mean(times)*costTime
+								if(synch){data$kick.avg <- 0; data$kick.sd<-0} 
+								influence <- if(synch==TRUE){ (data$neg-(nodes-data$initPos))/nodes  }else{0}
+								#print(head(data))
 								dataPlot <- rbind(dataPlot, c(netPar, m, driftStdDev, nodes, effectivity,
-												success, mean(times), mean(majGroup)/nodes, mean(data$pos)/nodes, 
-												mean(data$neg)/nodes, majpos, bayesrisk, mean(data$kickavg)/nodes,
+												success, mean(times), mean(majGroup)/nodes, mean(data$pos/nodes), 
+												mean(data$neg)/nodes, majpos, bayesrisk, mean(data$bayes/nodes), 
+												mean(data$kick.avg)/nodes, mean(influence),
 												1.96*sqrt( effectivity * (1-effectivity) / nrow(data) ),
 												1.96*sqrt( success * (1-success) / nrow(data) ),
 												1.96*sd(times)/sqrt(length(times)),
@@ -593,7 +730,8 @@ plotOnStdDev <- function(prefix, driftStdDev_list=c(0.25,0.5,1), nodes_list=40, 
 												effectivity - 1.96*sqrt( effectivity * (1-effectivity) / nrow(data) ), effectivity + 1.96*sqrt( effectivity * (1-effectivity) / nrow(data) ),
 												success - 1.96*sqrt( success * (1-success) / nrow(data) ), success + 1.96*sqrt( success * (1-success) / nrow(data) ),
 												mean(times) - 1.96*sd(times)/sqrt(length(times)), mean(times) + 1.96*sd(times)/sqrt(length(times)),
-												mean(data$kicksd)/nodes
+												mean(data$kick.sd)/nodes, 1.96*sd(data$pos/nodes)/sqrt(nrow(data)),
+												1.96*sd(data$bayes/nodes)/sqrt(length(data$bayes)), 1.96*sd(influence)/sqrt(length(influence))
 										))
 								
 								if (yaxis == 'time' && boxptime){
@@ -633,8 +771,8 @@ plotOnStdDev <- function(prefix, driftStdDev_list=c(0.25,0.5,1), nodes_list=40, 
 		}
 	}
 	#print(dataPlot)
-	colnames(dataPlot) <- c("netPar", "loop", "driftrange", "nodes", "effectivity", "success", "time", "majgroup", "pos", "neg", "majpos", "bayesrisk", "cascade",
-			"effectivity-stddev", "success-stddev", "time-stddev", "majgroup-stddev", "emin", "epl", "smin", "spl", "tmin", "tpl", "cascade-stddev" )
+	colnames(dataPlot) <- c("netPar", "loop", "driftrange", "nodes", "effectivity", "success", "time", "majgroup", "pos", "neg", "majpos", "bayesrisk", "meanBR", "cascade", "influence",
+			"effectivity-stddev", "success-stddev", "time-stddev", "majgroup-stddev", "emin", "epl", "smin", "spl", "tmin", "tpl", "cascade-stddev", "pos-stddev", "meanBR-stddev", "influence-stddev" )
 	#print(colnames(dataPlot))
 	if (yaxis != 'time' || !boxptime){
 		for (m in seq(1,length(legTxt))){
@@ -645,7 +783,7 @@ plotOnStdDev <- function(prefix, driftStdDev_list=c(0.25,0.5,1), nodes_list=40, 
 			} else {
 				points( dataPlot[dataPlot[,2]==m,'driftrange'], dataPlot[dataPlot[,2]==m, yaxis], pch=pntTypes[m], col=colours[m], cex=1, lwd=2, type='b', lty=m )
 			}
-			if (yaxis=="confidence" || yaxis=="success" || yaxis=="time" || yaxis=="effectivity" || yaxis=="cascade"){
+			if (yaxis=="confidence" || yaxis=="success" || yaxis=="time" || yaxis=="effectivity" || yaxis=="cascade" || yaxis=="pos" || yaxis=="meanBR" || yaxis=="influence"){
 				arrows(dataPlot[dataPlot[,2]==m,'driftrange'], dataPlot[dataPlot[,2]==m, yaxis]-dataPlot[dataPlot[,2]==m, paste(yaxis,"-stddev",sep="")], 
 						dataPlot[dataPlot[,2]==m,'driftrange'], dataPlot[dataPlot[,2]==m, yaxis]+dataPlot[dataPlot[,2]==m, paste(yaxis,"-stddev",sep="")], 
 						length=0.05, angle=90, code=3, col=colours[countPoints] ) #lty=(((m-1) %% length(updates))+1))
@@ -655,7 +793,8 @@ plotOnStdDev <- function(prefix, driftStdDev_list=c(0.25,0.5,1), nodes_list=40, 
 	
 	legpos <- 'bottomright'
 	legpos2 <- 'bottom'
-	if (yaxis == 'time' ){ legpos <- 'topright'; legpos2 <- 'top' }
+	if (yaxis == 'time'){ legpos <- 'topright'; legpos2 <- 'top' }
+	if (yaxis == 'meanBR'){ legpos <- 'bottomleft'; legpos2 <- 'bottom' }
 	if (yaxis == 'clustering' || yaxis == 'deegree' || yaxis == 'degree-scaled'){ legpos <- 'topleft'; legpos2 <- 'top'  }
 	if (legNodes){
 		#legend(legpos, paste("Nodes",nodes_list), pch=pntTypes[1:length(nodes_list)], col=colours[1:length(nodes_list)], lty=0, cex=1, lwd=2, bg='white' )
@@ -680,6 +819,9 @@ plotOnStdDev <- function(prefix, driftStdDev_list=c(0.25,0.5,1), nodes_list=40, 
 		}
 		if  (netType == 'space'){
 			txtL <- paste("Range: ", range_list, sep="")
+		}
+		if  (netType == 'rgg-fixed-degree'){
+			txtL <- paste("Avg-deg: ", range_list, sep="")
 		}
 #		txtL <- paste("d-Base: ", driftbases, sep="")
 		txtL <- paste("up: ", updatemodels, sep="")

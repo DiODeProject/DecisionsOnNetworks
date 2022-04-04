@@ -64,7 +64,7 @@ if __name__ == '__main__':
 #                           markersize=15, label='Blue stars')
 #     plt.legend(handles=[blue_line])
     plt.legend(loc=(0.1, 0.75), borderaxespad=0.)
-    plt.savefig('/Users/joefresna/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/approxCurves.pdf')
+    plt.savefig('~/Google Drive/DiODe/Manuscripts/DDM-on-Net/plots/approxCurves.pdf')
     plt.show()
     
     exit()

@@ -15,15 +15,13 @@ import scipy.optimize
 import scipy.integrate as integrate
 from scipy.stats import norm
 import math
-# import matplotlib.pyplot as plt
-# from statsmodels.graphics import plottools
 from matplotlib.backends.backend_pdf import PdfPages
 from DecNet import DecisionNet
 from DecNet.MyTypes import AgentType, DriftDistribution, NetworkType, DecisionModel, UpdateModel
 
 DEBUG=True
 
-DEFAULT_PROPERTIES_FILENAME = "/Users/joefresna/DecisionsOnNetworks/conf/DecNet.config"
+DEFAULT_PROPERTIES_FILENAME = "~/DecisionsOnNetworks/conf/DecNet.config"
 
 if __name__ == '__main__':
     if DEBUG: 
@@ -110,6 +108,7 @@ if __name__ == '__main__':
             finiteTimeExponent = config.getfloat('Agent', 'finiteTimeExponent')
     else:
         beliefEpsilon = None
+    misinformed = config.getboolean('Agent', 'misinformed')
     ## -- SimpleAgent params
     if (agentType == AgentType.SIMPLE) :
         accuracyMean = config.getfloat('SimpleAgent', 'accuracyMean')
@@ -227,6 +226,7 @@ if __name__ == '__main__':
         print( "agentType: " + str(agentTypeStr) )
         print( "decModel: " + str(decModelStr) )
         print( "updateModel: " + str(updateConfStr) )
+        print( "misinformed: " + str(misinformed) )
         if (agentType == AgentType.SIMPLE) :
             print( "accuracyMean: " + str(accuracyMean) )
             print( "accuracyStdDev: " + str(accuracyStdDev) )
@@ -269,7 +269,7 @@ if __name__ == '__main__':
     extraInfo = ''
 #     if (netType == DecisionNet.NetworkType.FULLY_CONNECTED):
 #         extraInfo = '\t acc ' # for fully-connected network we also estimate the expected group accuracy
-    line = 'seed \t exp \t run \t iter \t pos \t neg \t deg \t clust \t dstd \t cstd  \t conf \t confsd ' + extraInfo + '\n'
+    line = 'seed \t exp \t run \t iter \t pos \t neg \t deg \t clust \t dstd \t cstd  \t conf \t confsd \t initPos' + extraInfo + '\n'
     outFile.write(line)
     
     for exp in range(1,numberOfExperiments+1):
@@ -314,18 +314,24 @@ if __name__ == '__main__':
                 args.append( accuracyStdDev )
             if interrogationTimeFromAccuracy:
                 args.append(costMatrix)
-                def integrationFuncDdmThreshNormal(drift, costMatrix, noiseStdDev, baseDrift, driftStdDev):
+                def integrationFuncDdmThreshNormal(drift, costMatrix, noiseStdDev, baseDrift, driftStdDev, misinformed):
                     prob = norm.pdf(drift, baseDrift, driftStdDev)
-                    drift = abs(drift)
+                    if not misinformed: drift = abs(drift)
                     def compute_BR_opt_thresh(thresh): # from Eq. (5.6) of Bogacz et al. Psy.Rev. 2016
                         return costMatrix[1]/costMatrix[0] * 2 * (drift**2) / (noiseStdDev**2) - 4 * drift * thresh / (noiseStdDev**2) + np.exp( - 2 * drift * thresh / (noiseStdDev**2) ) -  np.exp( 2 * drift * thresh / (noiseStdDev**2) )             
                     pdf = scipy.optimize.fsolve( compute_BR_opt_thresh, 0.25*drift*costMatrix[1]/costMatrix[0], maxfev=1000 )[0] # second parameter is the starting point which is set to the approximation of Eq. (5.7) of Bogacz et al. Psy.Rev. 2016
                     return pdf*prob
-                integrResult = integrate.quad( integrationFuncDdmThreshNormal, -np.inf, np.inf, args=( costMatrix, noiseStdDev, baseDrift, driftStdDev ) )
+                integrResult = integrate.quad( integrationFuncDdmThreshNormal, -np.inf, np.inf, args=( costMatrix, noiseStdDev, baseDrift, driftStdDev, misinformed ) )
                 thresh = integrResult[0]
-                expectedAccuracy = 1 - ( 1.0/ ( 1 + np.exp(2*baseDrift*thresh/(noiseStdDev**2)) ))
+                def integrationFuncExpAccuracy(drift, thresh, noiseStdDev, baseDrift, driftStdDev, misinformed ):
+                    prob = norm.pdf(drift, baseDrift, driftStdDev)
+                    if not misinformed: drift = abs(drift)
+                    expAcc = 1 - ( 1.0/ ( 1 + np.exp(2*drift*thresh/(noiseStdDev**2)) ))
+                    return prob*expAcc
+                #expectedAccuracy = 1 - ( 1.0/ ( 1 + np.exp(2*baseDrift*thresh/(noiseStdDev**2)) ))
+                expectedAccuracy = integrate.quad( integrationFuncExpAccuracy, -np.inf, np.inf, args=( thresh, noiseStdDev, baseDrift, driftStdDev, misinformed ) )[0]
                 interrogationTime = expectedAccuracy
-            decNet.setDDMAgent(driftDistribution, baseDrift, noiseStdDev, interrogationTimeFromAccuracy, interrogationTime, prior, args)
+            decNet.setDDMAgent(driftDistribution, baseDrift, noiseStdDev, dt, interrogationTimeFromAccuracy, interrogationTime, prior, misinformed, args)
         if (DEBUG): print("Initialising agents")
         agentParams = []
         if (updateConf == UpdateModel.BELIEF_UP or updateConf == UpdateModel.FINITE_TIME) :

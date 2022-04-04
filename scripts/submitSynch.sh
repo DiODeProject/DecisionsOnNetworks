@@ -1,81 +1,56 @@
 #!/bin/bash
 
-#PROJECT_HOME="/Users/joefresna/DecisionOnNetworks"
-PROJECT_HOME="/home/ac1ar/DecisionsOnNetworks"
+PROJECT_HOME="${HOME}/DecisionsOnNetworks"
 CONF_DIR="${PROJECT_HOME}/conf_cluster"
 mkdir -p ${CONF_DIR}
 TEMPLATE_SETTINGS="${PROJECT_HOME}/conf/DecNet.template.config"
 PYPATH="${PROJECT_HOME}/src/"
 EXEC_FILE="${PROJECT_HOME}/src/DecNet/DecisionProcess.py"
-OUTPUT_DATA_DIR="${PROJECT_HOME}/synch_1/"
+OUTPUT_DATA_DIR="${PROJECT_HOME}/synch_6/"
 
 SEED=221189
-NUM_EXP=100
+NUM_EXP=1000
 NUM_RUN=1
-MAX_TIME=1000
+MAX_TIME=100
 
-AGENT_TYPE='DDM'
-DEC_MODEL_LIST=( 'log-odds-distr' )
-#UPDATE_CONF_LIST=( 'optim-up' 'belief-up')
-UPDATE_CONF_LIST=( 'no-up' 'optim-up' )
-#BELIEF_EPSILON_LIST=($(seq 0.07 0.001 0.1))
-#BELIEF_EPSILON_LIST=($(seq 0.01 0.005 0.15))
-#BELIEF_EPSILON_LIST=(0.01 0.05 0.10 0.20 0.30 0.40 0.50 0.60 0.70 0.80 0.90 1.00)
-#BELIEF_EPSILON_LIST=($(seq 0.01 0.01 0.10))
-#BELIEF_EPSILON_LIST=($(seq 0.001 0.003 0.016))
+AGENT_TYPE='simple'
+DEC_MODEL_LIST=( 'conf-perfect' )
+UPDATE_CONF_LIST=( 'no-up' 'optim-up' 'belief-up')
 BELIEF_EPSILON=0
 FINITE_TIME_EXPONENT=0.5
+ALLOW_MISINFO='false'
 
 ### Unnecessary for this analysis 
 DDM_DRIFT_DIST='normal'
-#DDM_BASE_DRIFT=0.1
-DDM_BASE_DRIFT_LIST=( 0.05 0.1 0.2 )
+DDM_BASE_DRIFT=0.1
+#DDM_BASE_DRIFT_LIST=( 0.05 0.1 0.2 )
 DDM_DRIFT_RANGE_PLUS_MINUS=1
-#DDM_DRIFT_STD_DEV=0.3
-DDM_DRIFT_STD_DEV_LIST=($(seq 0.10 0.10 0.50))
-DDM_NOISE_STD_DEV=0.5
+DDM_DRIFT_STD_DEV=0.3
+#DDM_DRIFT_STD_DEV_LIST=($(seq 0.05 0.05 0.50))
+DDM_NOISE_STD_DEV=1
 THRESHOLD=1
 I_TIME_FROM_ACC='true'
 INTERR_TIME=10
 PRIOR_DIST=0.5
 COST_MATRIX_T=1
-COST_MATRIX_E=20
+COST_MATRIX_E=100
 
 
-#NUM_NODES=20
-NUM_NODES_LIST=($(seq 20 10 100))
-#NUM_NODES_LIST=($(seq 30 20 90))
-#NUM_NODES_LIST=($(seq 50 50 200))
-#NUM_NODES_LIST=($(seq 11 12 47))
-#NUM_NODES_LIST=( 40 )
-NET_TYPE_LIST=('erdos-renyi' 'barabasi-albert' 'rgg-fixed-degree')
-#NET_TYPE_LIST=('space')
-#NET_TYPE_LIST=('erdos-renyi')
-#LINK_PROBABILITY_LIST=($(seq 0.2 0.1 0.8))
-#LINK_PROBABILITY_LIST=(0.2 0.4 0.6 0.8)
-LINK_PROBABILITY_LIST=(0.2 0.6)
-#LINK_PROBABILITY_LIST=(0.2)
-#NUM_EDGES=3
-#NUM_EDGES_LIST=($(seq 3 3 12))
-#NUM_EDGES_LIST=($(seq 5 5 20))
-NUM_EDGES_LIST=(3 9)
-#INTERACTION_RADIUS_LIST=($(seq 0.05 0.05 0.3))
-#INTERACTION_RADIUS_LIST=($(seq 0.20 0.05 0.35))
-INTERACTION_RADIUS_LIST=( 10 )
-#INTERACTION_RADIUS_LIST=( 0.05 )
+NUM_NODES_LIST=( 25 50 100 )
+#NET_TYPE_LIST=('erdos-renyi' 'barabasi-albert' 'rgg-fixed-degree')
+NET_TYPE_LIST=('rgg-fixed-degree')
+LINK_PROBABILITY_LIST=(0.2)
+NUM_EDGES_LIST=(3)
+INTERACTION_RADIUS_LIST=( 5 10 15 )
 ENV_SIZE=1
-#ENV_SIZE_LIST=( 1 )
-#ENV_SIZE_LIST=(0.5 2 3 4 5 6 7 8 9 15 20)
-#ENV_SIZE_LIST=(0.01 0.1 0.5 1 2 3 4 5 10 15 20)
 
 DYNAMICNET='false'
-#AGENTSPEED_LIST=($(seq 0.05 0.05 0.2))
 AGENTSPEED=0.05
 MOVE_STDDEV=45
 PERIODICBOUND='false'
 
-ACC_MEAN=0.6
-ACC_STD_DEV=0.12
+ACC_MEAN_LIST=( 0.5 0.6 )
+ACC_STD_DEV_LIST=( 0.05 0.1 0.15 0.2 0.25)
 ACC_TRUNCATED='true'
 
 COUNT=0
@@ -92,9 +67,9 @@ do
 				do
 					for NUM_EDGES in ${NUM_EDGES_LIST[*]}
 					do
-						for DDM_BASE_DRIFT in ${DDM_BASE_DRIFT_LIST[*]}
+						for ACC_MEAN in ${ACC_MEAN_LIST[*]}
 						do
-							for DDM_DRIFT_STD_DEV in ${DDM_DRIFT_STD_DEV_LIST[*]}
+							for ACC_STD_DEV in ${ACC_STD_DEV_LIST[*]}
 							do
 								for UPDATE_CONF in ${UPDATE_CONF_LIST[*]}
 								do
@@ -135,7 +110,8 @@ do
 										NET_PAR=${INTERACTION_RADIUS}
 									fi
 									
-									JOB_PARAM="net-${NET_TYPE}_nodes-${NUM_NODES}_link-${NET_PAR}_model-${DEC_MODEL}_up-${UPDATE_CONF}_driftbase-${DDM_BASE_DRIFT}_driftrange-${DDM_DRIFT_STD_DEV}"
+									#JOB_PARAM="net-${NET_TYPE}_nodes-${NUM_NODES}_link-${NET_PAR}_model-${DEC_MODEL}_up-${UPDATE_CONF}_driftbase-${DDM_BASE_DRIFT}_driftrange-${DDM_DRIFT_STD_DEV}"
+									JOB_PARAM="net-${NET_TYPE}_nodes-${NUM_NODES}_link-${NET_PAR}_model-${DEC_MODEL}_up-${UPDATE_CONF}_accmean-${ACC_MEAN}_accrange-${ACC_STD_DEV}"
 									OUT_TXT="${OUTPUT_DATA_DIR}out_${JOB_PARAM}.txt"
 										
 									CONF_FILE="${CONF_DIR}/decnet_${JOB_PARAM}.config"
@@ -152,6 +128,7 @@ do
 										-e "s|UPDATE_CONF|${UPDATE_CONF}|" \
 										-e "s|BELIEF_EPSILON|${BELIEF_EPSILON}|" \
 										-e "s|FINITE_TIME_EXPONENT|${FINITE_TIME_EXPONENT}|" \
+										-e "s|ALLOW_MISINFO|${ALLOW_MISINFO}|" \
 										-e "s|DDM_DRIFT_DIST|${DDM_DRIFT_DIST}|" \
 										-e "s|DDM_BASE_DRIFT|${DDM_BASE_DRIFT}|" \
 										-e "s|DDM_DRIFT_RANGE_PLUS_MINUS|${DDM_DRIFT_RANGE_PLUS_MINUS}|" \

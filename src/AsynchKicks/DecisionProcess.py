@@ -18,7 +18,7 @@ from AsynchKicks.MyTypes import AgentType, DriftDistribution, NetworkType, Updat
 
 DEBUG=True
 
-DEFAULT_PROPERTIES_FILENAME = "/Users/joefresna/DecisionsOnNetworks/conf/AsynchK.config"
+DEFAULT_PROPERTIES_FILENAME = "~/DecisionsOnNetworks/conf/AsynchK.config"
 
 update_dict = {'no-up': UpdateModel.NO_UPDATE, 'conf-kick': UpdateModel.CONF_KICK, 'thresh-kick': UpdateModel.THRESH_KICK }
 
@@ -46,6 +46,7 @@ if __name__ == '__main__':
     numberOfExperiments = config.getint('experiment', 'numberOfExperiments')
     repetitionsPerDDM = config.getint('experiment', 'repetitionsPerDDM')
     outputTxtFile = config.get('experiment', 'outputTxtFile')
+    outputTxtFileCascades = outputTxtFile[:-4] + "_cas.txt"  
     outputPdfFile = config.get('experiment', 'outputPdfFile')
     cluster = config.getboolean('experiment', 'cluster')
     if (cluster): DEBUG=False
@@ -65,6 +66,7 @@ if __name__ == '__main__':
     else:
         print("Non valid input for parameter [Agent].updateModel. Valid values are: " + str(update_dict.keys()) )
         sys.exit()
+    misinformed = config.getboolean('Agent', 'misinformed')
     ## -- SimpleAgent params
     if (agentType == AgentType.SIMPLE) :
         accuracyMean = config.getfloat('SimpleAgent', 'accuracyMean')
@@ -165,10 +167,12 @@ if __name__ == '__main__':
         print( "numberOfExperiments: " + str(numberOfExperiments) )
         print( "repetitionsPerDDM: " + str(repetitionsPerDDM) )
         print( "outputTxtFile: " + str(outputTxtFile) )
+        print( "outputTxtFileCascades: " + str(outputTxtFileCascades) )
         print( "outputPdfFile: " + str(outputPdfFile) )
         print( "cluster: " + str(cluster) )
         print( "agentType: " + str(agentTypeStr) )
         print( "updateModel: " + str(updateModelStr) )
+        print( "misinformed: " + str(misinformed) )
         if (agentType == AgentType.SIMPLE) :
             print( "accuracyMean: " + str(accuracyMean) )
             print( "accuracyStdDev: " + str(accuracyStdDev) )
@@ -208,9 +212,11 @@ if __name__ == '__main__':
     os.makedirs(os.path.dirname(outputTxtFile), exist_ok=True)
     if not cluster: os.makedirs(os.path.dirname(outputPdfFile), exist_ok=True)
     outFile = open(outputTxtFile, 'w')
+    outFileCascade = open(outputTxtFileCascades, 'w')
     extraInfo = ''
-    line = 'seed \t exp \t run \t iter \t pos \t neg \t conf \t kick-avg \t kick-sd' + extraInfo + '\n'
+    line = 'seed \t exp \t run \t iter \t pos \t neg \t conf \t kick-avg \t kick-sd \t kick-size \t thresh \t bayes' + extraInfo + '\n'
     outFile.write(line)
+    outFileCascade.write('rank\t casc\t op\n')
     
     for exp in range(1,numberOfExperiments+1):
         seed = randomSeed*exp
@@ -218,7 +224,6 @@ if __name__ == '__main__':
         
         ## init the DecNet object
         decNet = DecisionNet.DecNet(netType, agentType, updateModel, numOfNodes, seed, DEBUG)
-        decNet.logFilename = "/Users/joefresna/DecisionsOnNetworks/data/conf-log" + str(exp) + ".txt"
         
         ## Generate a network
         if (decNet.netType == NetworkType.FULLY_CONNECTED):
@@ -254,7 +259,7 @@ if __name__ == '__main__':
                 args.append( accuracyStdDev )
             if useBayesRisk:
                 args.append(costMatrix)
-            decNet.setDDMAgent(driftDistribution, baseDrift, noiseStdDev, threshold, prior, useBayesRisk, args)
+            decNet.setDDMAgent(driftDistribution, baseDrift, noiseStdDev, dt, threshold, prior, useBayesRisk, misinformed, args)
         if (DEBUG): print("Initialising agents")
         decNet.initAgents()
         
@@ -291,11 +296,14 @@ if __name__ == '__main__':
                 pp.close()
             
             line = str(seed) + '\t' + str(exp) + '\t' + str(run)
-            for res in results:
+            for res in results[:-1]:
                 line += '\t' + str(res)
             line += '\n'
             outFile.write(line)
+            for res in results[-1]:
+                outFileCascade.write(str(res.rank) + '\t' + str(res.cascadeSize) + '\t' + str(res.opinion) + '\n')
     
-    outFile.close()   
+    outFile.close()
+    outFileCascade.close()
     if DEBUG: print("Process Ended")
     

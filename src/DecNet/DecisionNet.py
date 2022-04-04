@@ -13,6 +13,7 @@ import copy
 import numpy.random as rand
 import networkx as nx #@UnresolvedImport
 import matplotlib.pyplot as plt
+from scipy.stats import norm
 from DecNet.NetAgent import NetAgent
 from DecNet.MyTypes import AgentType, DriftDistribution, NetworkType, DecisionModel, UpdateModel
 
@@ -61,13 +62,14 @@ class DecNet:
         self.accuracyStdDev = accuracyStdDev
         self.truncatePoor = truncatePoor
         
-    def setDDMAgent(self, driftDistribution, baseDrift, noiseStdDev, interrogationTimeFromAccuracy, interrogationTime, prior, args):
+    def setDDMAgent(self, driftDistribution, baseDrift, noiseStdDev, dt, interrogationTimeFromAccuracy, interrogationTime, prior, misinformed, args):
         self.driftDistribution = driftDistribution
         self.baseDrift = baseDrift
         self.noiseStdDev = noiseStdDev
         self.DDMstart = 0
-        self.dt = 0.01
+        self.dt = dt
         self.prior = prior
+        self.misinformed = misinformed
         if (self.driftDistribution == DriftDistribution.UNIFORM):
             self.randomDriftRangeMin = args[0]
             self.randomDriftRangeMax = args[1]
@@ -152,14 +154,6 @@ class DecNet:
     
     def getAllNodes(self):
         return self.graph.nodes()
-#         if (self.netType == NetworkType.FULLY_CONNECTED):
-#             return self.graph.nodes() #np.arange(self.numNodes)
-#         elif (self.netType == NetworkType.ERSOS_RENYI):
-#             return self.graph.nodes()
-#         elif (self.netType == NetworkType.BARABASI_ALBERT):
-#             return self.graph.nodes()
-#         elif (self.netType == NetworkType.SPACE):
-#             return self.graph.nodes()
         
     def countDecided(self):
         count = 0
@@ -177,6 +171,14 @@ class DecNet:
     
     def computeDriftFromAccuracy(self, accuracy, noise, interrogationTime):
         return math.sqrt(2) * noise * scipy.special.erfcinv(2 - 2*accuracy)/math.sqrt(interrogationTime)
+    
+    def integrationFuncStartDdmNormal(self, drift, noiseStdDev, prior, misinformed):
+        prob = norm.pdf(drift, self.baseDrift, self.driftStdDev)
+        if misinformed:
+            pdf = ( (noiseStdDev**2) / (2.0*drift) ) * math.log(prior / (1-prior)) # assuming always positive drifts (flipped if negative)
+        else:  
+            pdf = ( (noiseStdDev**2) / (2.0*abs(drift)) ) * math.log(prior / (1-prior)) # assuming always positive drifts (flipped if negative)
+        return pdf*prob
     
     def initAgents(self, agentParams=[]):
         self.agents = []
@@ -230,7 +232,7 @@ class DecNet:
             if (not self.prior == 0.5):
                 self.DDMstart = ( (self.noiseStdDev**2) / (2.0*meanDrift) ) * math.log(self.prior / (1-self.prior))
                 print("Mean DDM is " + str(meanDrift) + ' and start value is ' + str(self.DDMstart))
-                self.DDMstart = integrate.quad( self.integrationFuncStartDdmNormal, -np.inf, np.inf, args=( self.noiseStdDev, self.prior ) )[0]
+                self.DDMstart = integrate.quad( self.integrationFuncStartDdmNormal, -np.inf, np.inf, args=( self.noiseStdDev, self.prior, self.misinformed ) )[0]
                 print('Integral of start values is ' + str(self.DDMstart))
                 
             args = []
@@ -240,6 +242,7 @@ class DecNet:
             args.append( self.dt )
             args.append( self.interrogationTime )
             args.append( self.prior )
+            args.append( self.misinformed )
                 
             for n in self.getAllNodes():
                 # randomly select a drift
@@ -253,7 +256,7 @@ class DecNet:
                         acc = rand.normal(self.accuracyMean, self.accuracyStdDev)
                     driftRate = self.computeDriftFromAccuracy(acc, self.noiseStdDev, self.interrogationTime)
                 # revert negative drifts
-                args[0] = abs(driftRate)
+                args[0] = driftRate if self.misinformed else abs(driftRate)
                 self.agents.append( NetAgent(self.agentType, args, self.DEBUG) )
                 
                 if (self.driftDistribution  == DriftDistribution.FROM_ACCURACY):
@@ -272,8 +275,6 @@ class DecNet:
             line = file.readline()
             file.close()
             values = line.split('\t')[4:]
-#             for n in self.getAllNodes():
-#                 self.agents[n].opinion = int(values[n*4 +3])*2-1
                 
         for n in self.getAllNodes(): 
             self.agents[n].initialiseOpinion(self.decModel, self.agents)
@@ -324,6 +325,7 @@ class DecNet:
                     min(abs(y_1 - y_2), self.areaSize - abs(y_1 - y_2))**2)
        
     def collectiveDecision(self, maxLoops, plot=None, plotTrajectory=False):
+        initPos = self.countOpinion(1)
         if (self.decModel == DecisionModel.BEST_ACC):
             if (self.agents[self.bestAccNode].opinion == 1):
                 allPos = len(self.agents) 
@@ -453,7 +455,7 @@ class DecNet:
         confs = []
         for n in self.getAllNodes():
             confs.append(self.agents[n].confidence)
-        return count, self.countOpinion(1), self.countOpinion(-1), avg_degree, clust, deg_stddev, clust_stddev, np.mean(confs), np.std(confs)
+        return count, self.countOpinion(1), self.countOpinion(-1), avg_degree, clust, deg_stddev, clust_stddev, np.mean(confs), np.std(confs), initPos
         
     def solveOutOfBoundConditions(self, agent, currentPos, saveTrajectory):
         if self.periodicBounds:
