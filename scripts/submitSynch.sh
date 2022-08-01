@@ -6,7 +6,7 @@ mkdir -p ${CONF_DIR}
 TEMPLATE_SETTINGS="${PROJECT_HOME}/conf/DecNet.template.config"
 PYPATH="${PROJECT_HOME}/src/"
 EXEC_FILE="${PROJECT_HOME}/src/DecNet/DecisionProcess.py"
-OUTPUT_DATA_DIR="${PROJECT_HOME}/synch_6/"
+OUTPUT_DATA_DIR="${PROJECT_HOME}/synch_other_nets/"
 
 SEED=221189
 NUM_EXP=1000
@@ -36,11 +36,11 @@ COST_MATRIX_T=1
 COST_MATRIX_E=100
 
 
-NUM_NODES_LIST=( 25 50 100 )
-#NET_TYPE_LIST=('erdos-renyi' 'barabasi-albert' 'rgg-fixed-degree')
-NET_TYPE_LIST=('rgg-fixed-degree')
-LINK_PROBABILITY_LIST=(0.2)
-NUM_EDGES_LIST=(3)
+NUM_NODES_LIST=( 50 100 )
+NET_TYPE_LIST=('erdos-renyi' 'barabasi-albert' 'rgg-fixed-degree')
+#NET_TYPE_LIST=('erdos-renyi' 'barabasi-albert' )
+LINK_PROBABILITY_LIST=( 0.2 0.3 )
+NUM_EDGES_LIST=( 3 5 )
 INTERACTION_RADIUS_LIST=( 5 10 15 )
 ENV_SIZE=1
 
@@ -156,7 +156,8 @@ do
 									export PYTHONPATH=${PYPATH}
 									#COMMAND="python3 ${EXEC_FILE} ${CONF_FILE}"
 									#COMMAND="./run_job.sh ${EXEC_FILE} ${CONF_FILE}"
-									COMMAND="qsub run_job.sh ${EXEC_FILE} ${CONF_FILE}"
+									#COMMAND="qsub run_job.sh ${EXEC_FILE} ${CONF_FILE}"
+									COMMAND="sbatch run_job.sh ${EXEC_FILE} ${CONF_FILE}"
 									#${COMMAND}
 									while ! ${COMMAND}
 									do

@@ -212,6 +212,7 @@ plotCascadeOnRank <- function(prefix,resdir,driftStdDev_list=c(0.01, 0.05, 0.10,
 									driftStep <- (max(driftStdDev_list)-min(driftStdDev_list))/(length(driftStdDev_list)-1)
 									#myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
 									maxLegend <- if(misinfo){130}else{170}
+									maxLegend <- 200
 									minLegend <- if(misinfo){20}else{0}
 									ggplot(data2d[data2d$casc >= 0.1*nodes,], aes(x=rank, y=stdv) ) + geom_bin2d( breaks=list( x=seq(0,nodes,nodes/length(driftStdDev_list)), y=seq(min(driftStdDev_list)-driftStep/2.0, max(driftStdDev_list)+driftStep/2.0, driftStep)) ) +
 											stat_bin2d(geom = "text", aes(label = ..count..), breaks=list( x=seq(0,nodes,nodes/length(driftStdDev_list)), y=seq(min(driftStdDev_list)-driftStep/2.0, max(driftStdDev_list)+driftStep/2.0, driftStep)) ) + # this is to plot the number inside the squares 

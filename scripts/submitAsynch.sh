@@ -31,10 +31,10 @@ COST_MATRIX_E=100
 
 #NUM_NODES_LIST=($(seq 20 20 100))
 NUM_NODES_LIST=(50 100)
-#NET_TYPE_LIST=('erdos-renyi' 'barabasi-albert' 'rgg-fixed-degree')
-NET_TYPE_LIST=('rgg-fixed-degree')
-LINK_PROBABILITY_LIST=( 0.2 )
-NUM_EDGES_LIST=( 3 )
+NET_TYPE_LIST=('erdos-renyi' 'barabasi-albert' 'rgg-fixed-degree')
+#NET_TYPE_LIST=('rgg-fixed-degree')
+LINK_PROBABILITY_LIST=( 0.2 0.3 )
+NUM_EDGES_LIST=( 3 5 )
 INTERACTION_RADIUS_LIST=( 5 10 15 )
 ENV_SIZE=1
 
